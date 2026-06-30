@@ -322,6 +322,7 @@ main{flex:1;overflow-y:auto;padding:4px 16px 100px;}
         <div id="clientArea"></div>
 
         <button class="confirm-btn" id="confirmBtn" disabled>Confirmar pedido</button>
+        <button id="cancelEditBtn" style="display:none;width:100%;margin-top:8px;background:none;border:none;color:var(--ink-soft);font-size:13px;text-decoration:underline;padding:8px;">Cancelar edición (descartar cambios)</button>
       </div>
     </div>
   </div>
@@ -668,17 +669,23 @@ function openCartSheet(){
 }
 function closeCartSheet(){
   $('cartOverlay').classList.remove('open');
-  if (editingPedidoId) {
-    // Se cerró el carrito sin guardar los cambios de la edición: volvemos
-    // todo a estado normal para que el próximo pedido sea uno nuevo, no
-    // siga "pegado" a la edición anterior.
-    editingPedidoId = null;
-    cart = {};
-    selectedCliente = null;
-    $('confirmBtn').textContent = 'Confirmar pedido';
-    updateCartBar();
-  }
 }
+
+// Cancela una edición en curso sin guardar nada (vuelve todo a estado
+// normal). Se llama desde un botón explícito, NUNCA al cerrar el carrito
+// para ir a buscar más productos (eso debe conservar lo que se viene
+// armando, igual que en un pedido nuevo).
+function cancelarEdicionPedido(){
+  editingPedidoId = null;
+  cart = {};
+  selectedCliente = null;
+  $('confirmBtn').textContent = 'Confirmar pedido';
+  $('cancelEditBtn').style.display = 'none';
+  updateCartBar();
+  closeCartSheet();
+  showToast('Edición cancelada, no se guardó ningún cambio');
+}
+$('cancelEditBtn').onclick = cancelarEdicionPedido;
 
 function renderCartItems(){
   const wrap = $('cartItems');
@@ -813,6 +820,7 @@ $('confirmBtn').onclick = async () => {
         updateCartBar();
         closeCartSheet();
         $('confirmBtn').textContent = 'Confirmar pedido';
+        $('cancelEditBtn').style.display = 'none';
         await cargarHistorial(); // refresca la lista para que se vea el total nuevo
       } else {
         showToast('No se pudo guardar: ' + (res.error || ''));
@@ -971,6 +979,7 @@ function editarPedidoDesdeDetalle(p){
   updateCartBar();
   updateConfirmState();
   $('confirmBtn').textContent = 'Guardar cambios del pedido ' + p.id;
+  $('cancelEditBtn').style.display = 'block';
   openCartSheet();
   showToast('Editando pedido ' + p.id + ' — agregá, sacá o cambiá cantidades y guardá');
 }
