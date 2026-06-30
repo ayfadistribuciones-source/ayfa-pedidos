@@ -338,6 +338,7 @@ let catalogo = [];
 let clientes = [];
 let cart = {}; // codigo -> {item, qty}
 let vendedor = localStorage.getItem('ayfa_vendedor') || '';
+let claveAcceso = localStorage.getItem('ayfa_clave') || '';
 let selectedCliente = null;
 let activeCategoria = '';
 let activeOrigen = '';
@@ -369,6 +370,44 @@ function prepararClientesBusqueda(lista){
 function showToast(msg){
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+// ---------------- CLAVE DE ACCESO ----------------
+// Se pide una sola vez (la primera vez que se usa la app en ese teléfono) y
+// queda guardada en localStorage. Si el servidor la rechaza más adelante
+// (porque la cambiaste vos en Apps Script), se vuelve a pedir.
+function pedirClave(mensaje){
+  const v = (prompt(mensaje || 'Ingresá la clave de acceso de AyFa Pedidos:') || '').trim();
+  if (v) {
+    claveAcceso = v;
+    localStorage.setItem('ayfa_clave', v);
+  }
+  return v;
+}
+
+// Envuelve fetch agregando la clave y reintentando una vez si el servidor
+// avisa que es inválida (clave vieja guardada en el teléfono, por ejemplo).
+async function apiGet(params){
+  const intentar = () => fetch(API_URL + '?' + params + '&clave=' + encodeURIComponent(claveAcceso)).then(r=>r.json());
+  let res = await intentar();
+  if (res && res.error === 'CLAVE_INVALIDA') {
+    pedirClave('Clave incorrecta. Probá de nuevo:');
+    res = await intentar();
+  }
+  return res;
+}
+
+async function apiPost(payload){
+  const intentar = () => fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify(Object.assign({}, payload, { clave: claveAcceso }))
+  }).then(r=>r.json());
+  let res = await intentar();
+  if (res && res.error === 'CLAVE_INVALIDA') {
+    pedirClave('Clave incorrecta. Probá de nuevo:');
+    res = await intentar();
+  }
+  return res;
 }
 
 // ---------------- LOGIN ----------------
@@ -412,8 +451,8 @@ async function loadData(){
     renderProducts('');
 
     const [r1, r2] = await Promise.all([
-      fetch(API_URL + '?action=catalogo').then(r=>r.json()),
-      fetch(API_URL + '?action=clientes').then(r=>r.json())
+      apiGet('action=catalogo'),
+      apiGet('action=clientes')
     ]);
     if (Array.isArray(r1)) {
       catalogo = prepararCatalogoBusqueda(r1);
@@ -669,10 +708,7 @@ async function saveNewClient(){
   selectedCliente = cliente;
   clientes.push(cliente);
   renderClientArea();
-  fetch(API_URL, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'nuevo_cliente', cliente })
-  }).catch(()=>{});
+  apiPost({ action: 'nuevo_cliente', cliente }).catch(()=>{});
 }
 
 function updateConfirmState(){
@@ -696,7 +732,7 @@ $('confirmBtn').onclick = async () => {
   $('confirmBtn').disabled = true;
   $('confirmBtn').textContent = 'Enviando...';
   try {
-    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'nuevo_pedido', pedido }) }).then(r=>r.json());
+    const res = await apiPost({ action: 'nuevo_pedido', pedido });
     if (res.ok) {
       $('successId').textContent = res.id;
       $('successClient').textContent = 'Cliente: ' + selectedCliente.nombre;
@@ -740,7 +776,7 @@ async function cargarHistorial(){
   const body = $('historyBody');
   body.innerHTML = '<div class="hint">Cargando...</div>';
   try {
-    const res = await fetch(API_URL + '?action=pedidos').then(r=>r.json());
+    const res = await apiGet('action=pedidos');
     if (!Array.isArray(res)) { body.innerHTML = '<div class="hint">No se pudo cargar el historial.</div>'; return; }
     const hoyStr = new Date().toDateString();
     pedidosHoy = res.filter(p => new Date(p.fecha).toDateString() === hoyStr);
@@ -832,10 +868,7 @@ async function compartirPDF(){
   }
 
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'generar_pdf', id: pedidoActivo.id })
-    }).then(r => r.json());
+    const res = await apiPost({ action: 'generar_pdf', id: pedidoActivo.id });
 
     if (!res.ok) {
       showToast('No se pudo generar el PDF: ' + (res.error || ''));
@@ -887,6 +920,7 @@ function startApp(){
   loadData();
 }
 
+if (!claveAcceso) pedirClave();
 if (vendedor) { startApp(); } else { renderLogin(); }
 
 if ('serviceWorker' in navigator) {
