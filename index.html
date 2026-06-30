@@ -261,6 +261,26 @@ main{flex:1;overflow-y:auto;padding:4px 16px 100px;}
 .det-total{display:flex;justify-content:space-between;align-items:baseline;padding:14px 0 4px;font-family:'Barlow Condensed';}
 .det-total .num{font-size:26px;font-weight:800;color:var(--navy);}
 
+.stats-range{display:flex;gap:8px;margin-bottom:14px;}
+.stats-range .chip{flex:1;text-align:center;}
+.stats-summary{
+  background:var(--paper-2);border:1px solid var(--line);border-radius:12px;
+  padding:16px;margin-bottom:16px;display:flex;justify-content:space-between;gap:10px;
+}
+.stats-summary .sbox{flex:1;text-align:center;}
+.stats-summary .snum{font-family:'Barlow Condensed';font-weight:800;font-size:22px;color:var(--navy);}
+.stats-summary .slbl{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;}
+.stats-section-title{font-size:13px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;margin:4px 0 10px;}
+.top-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line);}
+.top-rank{
+  width:24px;height:24px;border-radius:6px;background:var(--navy);color:#fff;
+  font-family:'Barlow Condensed';font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.top-info{flex:1;min-width:0;}
+.top-name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.top-meta{font-size:11.5px;color:var(--ink-soft);}
+.top-right{text-align:right;font-family:'Barlow Condensed';font-weight:800;font-size:15px;color:var(--navy);flex-shrink:0;}
+
 .wa-actions{display:flex;gap:8px;margin-top:18px;}
 .wa-btn{
   flex:1;padding:13px 10px;border-radius:var(--radius);border:none;font-weight:700;font-size:13px;
@@ -301,6 +321,7 @@ main{flex:1;overflow-y:auto;padding:4px 16px 100px;}
         <div class="who" id="whoLabel"></div>
       </div>
       <div class="header-actions">
+        <button class="historyBtn" id="statsBtn" title="Resumen de ventas">📊</button>
         <button class="historyBtn" id="historyBtn" title="Pedidos de hoy">📋</button>
         <button class="logout" id="logoutBtn">Cambiar vendedor</button>
       </div>
@@ -359,6 +380,18 @@ main{flex:1;overflow-y:auto;padding:4px 16px 100px;}
       <div class="sheet-head"><h2>Pedidos de hoy</h2><button class="sheet-close" id="historyCloseBtn">✕</button></div>
       <div class="sheet-body" id="historyBody">
         <div class="hint">Cargando...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESUMEN DE VENTAS / TOP PRODUCTOS -->
+  <div class="sheet-overlay" id="statsOverlay">
+    <div class="sheet" id="statsSheet" style="max-height:92vh;">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head"><h2>Resumen de ventas</h2><button class="sheet-close" id="statsCloseBtn">✕</button></div>
+      <div class="sheet-body">
+        <div class="stats-range" id="statsRange"></div>
+        <div id="statsBody"><div class="hint">Cargando...</div></div>
       </div>
     </div>
   </div>
@@ -1088,6 +1121,145 @@ $('detalleOverlay').addEventListener('click', (e) => { if (e.target.id === 'deta
 function openHistorial(){
   $('historyOverlay').classList.add('open');
   cargarHistorial();
+}
+
+// ---------------- RESUMEN DE VENTAS / TOP PRODUCTOS ----------------
+let statsRangeActivo = 'hoy';
+let statsDesde = '';
+let statsHasta = '';
+const STATS_RANGOS = [
+  { id: 'hoy', label: 'Hoy' },
+  { id: 'semana', label: '7 días' },
+  { id: 'mes', label: '30 días' },
+  { id: 'todo', label: 'Todo' },
+  { id: 'personalizado', label: '📅 Elegir fechas' }
+];
+
+$('statsBtn').onclick = openStats;
+$('statsCloseBtn').onclick = () => $('statsOverlay').classList.remove('open');
+$('statsOverlay').addEventListener('click', (e) => { if (e.target.id === 'statsOverlay') $('statsOverlay').classList.remove('open'); });
+
+function openStats(){
+  renderStatsRangeChips();
+  $('statsOverlay').classList.add('open');
+  cargarStats();
+}
+
+function renderStatsRangeChips(){
+  const wrap = $('statsRange');
+  wrap.innerHTML = '';
+  const fila = document.createElement('div');
+  fila.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
+  STATS_RANGOS.forEach(r => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (statsRangeActivo === r.id ? ' active' : '');
+    chip.textContent = r.label;
+    chip.onclick = () => { statsRangeActivo = r.id; renderStatsRangeChips(); if (r.id !== 'personalizado') cargarStats(); };
+    fila.appendChild(chip);
+  });
+  wrap.appendChild(fila);
+
+  if (statsRangeActivo === 'personalizado') {
+    const box = document.createElement('div');
+    box.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;';
+    box.innerHTML = `
+      <input type="date" id="statsDesdeInput" value="${statsDesde}" style="flex:1;min-width:130px;padding:8px;border-radius:8px;border:1px solid var(--line);">
+      <span style="color:var(--ink-soft);font-size:13px;">hasta</span>
+      <input type="date" id="statsHastaInput" value="${statsHasta}" style="flex:1;min-width:130px;padding:8px;border-radius:8px;border:1px solid var(--line);">
+      <button id="statsAplicarBtn" style="padding:9px 14px;border-radius:8px;border:none;background:var(--navy);color:#fff;font-weight:700;font-size:13px;">Aplicar</button>
+    `;
+    wrap.appendChild(box);
+    $('statsAplicarBtn').onclick = () => {
+      statsDesde = $('statsDesdeInput').value;
+      statsHasta = $('statsHastaInput').value;
+      if (!statsDesde || !statsHasta) { showToast('Elegí las dos fechas'); return; }
+      cargarStats();
+    };
+  }
+}
+
+function pedidoDentroDeRango(p, rango){
+  if (rango === 'todo') return true;
+  const fecha = new Date(p.fecha);
+  const ahora = new Date();
+  if (rango === 'hoy') return fecha.toDateString() === ahora.toDateString();
+  if (rango === 'personalizado') {
+    if (!statsDesde || !statsHasta) return false;
+    const desde = new Date(statsDesde + 'T00:00:00');
+    const hasta = new Date(statsHasta + 'T23:59:59');
+    return fecha >= desde && fecha <= hasta;
+  }
+  const dias = rango === 'semana' ? 7 : 30;
+  const limite = new Date(ahora);
+  limite.setDate(limite.getDate() - dias + 1);
+  limite.setHours(0, 0, 0, 0);
+  return fecha >= limite;
+}
+
+async function cargarStats(){
+  const body = $('statsBody');
+
+  if (statsRangeActivo === 'personalizado' && (!statsDesde || !statsHasta)) {
+    body.innerHTML = '<div class="hint">Elegí una fecha "desde" y "hasta" arriba, y tocá Aplicar.</div>';
+    return;
+  }
+
+  body.innerHTML = '<div class="hint">Cargando...</div>';
+  let pedidos;
+  try {
+    const res = await apiGet('action=pedidos');
+    if (!Array.isArray(res)) { body.innerHTML = '<div class="hint">No se pudo cargar.</div>'; return; }
+    pedidos = res;
+  } catch (err) {
+    body.innerHTML = '<div class="hint">Sin conexión — el resumen necesita bajar los pedidos del servidor. Probá de nuevo con señal.</div>';
+    return;
+  }
+
+  const enRango = pedidos.filter(p => pedidoDentroDeRango(p, statsRangeActivo));
+
+  if (!enRango.length) {
+    body.innerHTML = '<div class="hint">No hay pedidos en este período.</div>';
+    return;
+  }
+
+  const totalVendido = enRango.reduce((s, p) => s + Number(p.total || 0), 0);
+  const cantPedidos = enRango.length;
+  const promedio = totalVendido / cantPedidos;
+
+  // Agrupamos todos los items de todos los pedidos del rango, por producto
+  // (código + descripción), sumando cantidad vendida y monto facturado.
+  const porProducto = {};
+  enRango.forEach(p => {
+    (p.items || []).forEach(it => {
+      const key = (it.codigo || '') + '|' + it.descripcion;
+      if (!porProducto[key]) porProducto[key] = { descripcion: it.descripcion, codigo: it.codigo, origen: it.origen, cantidad: 0, monto: 0 };
+      porProducto[key].cantidad += Number(it.cantidad) || 0;
+      porProducto[key].monto += (Number(it.cantidad) || 0) * (Number(it.precio) || 0);
+    });
+  });
+  const top15 = Object.values(porProducto).sort((a, b) => b.monto - a.monto).slice(0, 15);
+
+  let html = `
+    <div class="stats-summary">
+      <div class="sbox"><div class="snum">${money(totalVendido)}</div><div class="slbl">Vendido</div></div>
+      <div class="sbox"><div class="snum">${cantPedidos}</div><div class="slbl">Pedidos</div></div>
+      <div class="sbox"><div class="snum">${money(promedio)}</div><div class="slbl">Promedio</div></div>
+    </div>
+    <div class="stats-section-title">🏆 Top ${top15.length} productos más vendidos</div>
+  `;
+  top15.forEach((p, i) => {
+    html += `
+      <div class="top-row">
+        <div class="top-rank">${i + 1}</div>
+        <div class="top-info">
+          <div class="top-name">${p.descripcion}</div>
+          <div class="top-meta">${p.cantidad} unid.${p.origen ? ' · ' + p.origen : ''}</div>
+        </div>
+        <div class="top-right">${money(p.monto)}</div>
+      </div>
+    `;
+  });
+  body.innerHTML = html;
 }
 
 async function cargarHistorial(){
