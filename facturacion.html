@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>AY-FA · Facturación</title>
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="config.js"></script>
+<style>
+  :root{
+    --navy:#1B2A55; --amber:#E8A33D; --paper:#F7F8F9; --paper-2:#FFFFFF;
+    --ink:#1C2230; --ink-soft:#6B7280; --line:#E4E7EC; --red:#C0392B; --green:#1F7A45;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;font-family:'Helvetica Neue',Arial,sans-serif;background:var(--paper);
+    color:var(--ink);min-height:100vh;
+  }
+  header{
+    background:var(--navy);color:#fff;padding:16px 18px;display:flex;align-items:center;
+    justify-content:space-between;position:sticky;top:0;z-index:10;
+  }
+  header h1{font-size:17px;margin:0;font-weight:700;}
+  header .sub{font-size:12px;opacity:.8;margin-top:2px;}
+  #refreshBtn{background:rgba(255,255,255,.15);border:none;color:#fff;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;}
+  main{max-width:640px;margin:0 auto;padding:16px;padding-bottom:80px;}
+  .summary{
+    background:var(--paper-2);border:1px solid var(--line);border-radius:12px;padding:16px;
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;
+  }
+  .summary .num{font-family:'Helvetica Neue',Arial,sans-serif;font-weight:800;font-size:24px;color:var(--navy);}
+  .summary .lbl{font-size:12px;color:var(--ink-soft);}
+  #genTodosBtn{
+    background:var(--amber);color:var(--navy);border:none;border-radius:10px;padding:12px 16px;
+    font-weight:800;font-size:14px;width:100%;margin-bottom:16px;
+  }
+  #genTodosBtn:disabled{opacity:.5;}
+  .row{
+    background:var(--paper-2);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;
+  }
+  .row .cliente{font-weight:700;font-size:15px;}
+  .row .meta{font-size:12.5px;color:var(--ink-soft);margin-top:2px;}
+  .row .total{font-weight:800;color:var(--navy);font-size:16px;margin-top:6px;}
+  .row .items{font-size:12.5px;color:var(--ink-soft);margin-top:8px;line-height:1.5;}
+  .row button{
+    width:100%;margin-top:10px;padding:10px;border-radius:9px;border:none;
+    background:var(--navy);color:#fff;font-weight:700;font-size:13.5px;
+  }
+  .row button:disabled{opacity:.5;}
+  .row.hecho{opacity:.45;}
+  .row.hecho button{background:var(--green);}
+  .hint{text-align:center;color:var(--ink-soft);font-size:13.5px;padding:30px 10px;}
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;
+    padding:10px 18px;border-radius:10px;font-size:13px;z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;
+    max-width:90vw;text-align:center;
+  }
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>AY-FA · Facturación</h1>
+    <div class="sub">Pedidos pendientes de imprimir</div>
+  </div>
+  <button id="refreshBtn">↻ Actualizar</button>
+</header>
+
+<main>
+  <div class="summary">
+    <div><div class="num" id="cantPendientes">–</div><div class="lbl">pedidos pendientes</div></div>
+    <div style="text-align:right;"><div class="num" id="totalPendiente">–</div><div class="lbl">total a facturar</div></div>
+  </div>
+  <button id="genTodosBtn">Generar PDF de todos los pendientes</button>
+  <div id="listaBody"><div class="hint">Cargando...</div></div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const money = (n) => '$' + Number(n).toLocaleString('es-AR', {maximumFractionDigits:0});
+
+let claveAcceso = localStorage.getItem('ayfa_clave_facturacion') || '';
+let pendientes = [];
+
+function showToast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+function pedirClave(mensaje){
+  const v = (prompt(mensaje || 'Ingresá la clave de facturación de AyFa:') || '').trim();
+  if (v) { claveAcceso = v; localStorage.setItem('ayfa_clave_facturacion', v); }
+  return v;
+}
+
+function fetchConTimeout(url, opts, timeoutMs){
+  timeoutMs = timeoutMs || 15000;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  return fetch(url, Object.assign({}, opts, { signal: ctrl.signal })).finally(() => clearTimeout(t));
+}
+
+async function apiGet(params){
+  const intentar = () => fetchConTimeout(API_URL + '?' + params + '&clave=' + encodeURIComponent(claveAcceso)).then(r=>r.json());
+  let res = await intentar();
+  if (res && res.error === 'CLAVE_INVALIDA') { pedirClave('Clave incorrecta. Probá de nuevo:'); res = await intentar(); }
+  return res;
+}
+async function apiPost(payload){
+  const intentar = () => fetchConTimeout(API_URL, {
+    method: 'POST',
+    body: JSON.stringify(Object.assign({}, payload, { clave: claveAcceso }))
+  }).then(r=>r.json());
+  let res = await intentar();
+  if (res && res.error === 'CLAVE_INVALIDA') { pedirClave('Clave incorrecta. Probá de nuevo:'); res = await intentar(); }
+  return res;
+}
+
+async function cargar(){
+  $('listaBody').innerHTML = '<div class="hint">Cargando...</div>';
+  try {
+    const res = await apiGet('action=pendientes_facturacion');
+    if (!Array.isArray(res)) {
+      $('listaBody').innerHTML = '<div class="hint">' + (res && res.error ? res.error : 'No se pudo cargar') + '</div>';
+      return;
+    }
+    pendientes = res;
+    render();
+  } catch (err) {
+    $('listaBody').innerHTML = '<div class="hint">No se pudo cargar. Revisá tu conexión.</div>';
+  }
+}
+
+function render(){
+  const total = pendientes.reduce((s,p)=>s+Number(p.total||0),0);
+  $('cantPendientes').textContent = pendientes.length;
+  $('totalPendiente').textContent = money(total);
+  $('genTodosBtn').disabled = !pendientes.length;
+
+  if (!pendientes.length) {
+    $('listaBody').innerHTML = '<div class="hint">No hay pedidos pendientes — está todo facturado 🎉</div>';
+    return;
+  }
+
+  $('listaBody').innerHTML = '';
+  pendientes.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.id = 'row-' + p.id;
+    const hora = new Date(p.fecha).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    const itemsTxt = (p.items||[]).map(it => `${it.cantidad} x ${it.descripcion}`).join(' · ');
+    row.innerHTML = `
+      <div class="cliente">${p.cliente} <span style="font-weight:400;color:var(--ink-soft);font-size:12.5px;">· ${p.id}</span></div>
+      <div class="meta">${p.vendedor} · ${hora}</div>
+      <div class="items">${itemsTxt}</div>
+      <div class="total">${money(p.total)}</div>
+      <button id="btn-${p.id}">📄 Generar PDF y marcar como facturado</button>
+    `;
+    $('btn-' + p.id).onclick = () => generarUno(p.id);
+    $('listaBody').appendChild(row);
+  });
+}
+
+async function generarUno(id){
+  const btn = $('btn-' + id);
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Generando...';
+  try {
+    const res = await apiPost({ action: 'generar_y_marcar_facturacion', id });
+    if (!res.ok) {
+      showToast('Error: ' + (res.error || 'no se pudo generar'));
+      btn.disabled = false; btn.textContent = original;
+      return;
+    }
+    // Abrimos el PDF para que lo pueda ver/descargar/imprimir al toque.
+    try {
+      const byteChars = atob(res.pdfBase64);
+      const byteNumbers = new Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (e) {
+      window.open(res.driveUrl, '_blank');
+    }
+    const row = $('row-' + id);
+    row.classList.add('hecho');
+    btn.textContent = '✅ Facturado';
+    pendientes = pendientes.filter(p => p.id !== id);
+    setTimeout(() => { row.remove(); render(); }, 600);
+  } catch (err) {
+    showToast('Sin conexión, probá de nuevo');
+    btn.disabled = false; btn.textContent = original;
+  }
+}
+
+$('genTodosBtn').onclick = async () => {
+  if (!confirm('¿Generar el PDF de los ' + pendientes.length + ' pedidos pendientes y marcarlos a todos como facturados?')) return;
+  $('genTodosBtn').disabled = true;
+  $('genTodosBtn').textContent = 'Generando...';
+  const ids = pendientes.map(p => p.id);
+  let ok = 0, fallaron = 0;
+  for (const id of ids) {
+    try {
+      const res = await apiPost({ action: 'generar_y_marcar_facturacion', id });
+      if (res.ok) { ok++; const row = $('row-'+id); if (row) row.classList.add('hecho'); }
+      else fallaron++;
+    } catch (e) { fallaron++; }
+  }
+  await cargar();
+  $('genTodosBtn').disabled = false;
+  $('genTodosBtn').textContent = 'Generar PDF de todos los pendientes';
+  showToast('✅ ' + ok + ' generado(s)' + (fallaron ? ' · ⚠️ ' + fallaron + ' con error' : '') + ' — abrilos uno por uno desde la lista si hace falta reimprimir');
+};
+
+$('refreshBtn').onclick = cargar;
+
+if (!claveAcceso) pedirClave();
+cargar();
+</script>
+</body>
+</html>
