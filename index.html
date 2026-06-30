@@ -867,10 +867,11 @@ async function compartirPDF(){
     }
 
     // Respaldo: el dispositivo no soporta compartir archivos directo.
-    // Acá sí abrimos una pestaña nueva con el PDF (puede ser bloqueada como
-    // pop-up en algunos navegadores, pero ya no es el camino principal).
-    window.open(res.driveUrl, '_blank');
-    showToast('Se abrió el PDF — compartilo manualmente por WhatsApp desde ahí');
+    // Navegamos la MISMA pestaña al PDF (no abrimos una nueva) porque
+    // window.open() para una pestaña nueva lo bloquea Safari como pop-up,
+    // mientras que cambiar de página en la pestaña actual nunca se bloquea.
+    showToast('Abriendo el PDF — desde ahí tocá el ícono de compartir para mandarlo por WhatsApp');
+    setTimeout(() => { window.location.href = res.driveUrl; }, 600);
   } catch (err) {
     showToast('No se pudo generar el PDF. Revisá tu conexión.');
   }
