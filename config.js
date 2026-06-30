@@ -4,4 +4,4 @@ const API_URL = "https://script.google.com/macros/s/AKfycbw3OmfGaMXR47qTdLISg6JC
 
 // Nombres de vendedores que van a poder elegir al entrar.
 // Agregá o sacá nombres según haga falta.
-const VENDEDORES = ["Yamir", "Mateo", "Vendedor 3"];
+const VENDEDORES = ["Omar Blanco"];
