@@ -110,12 +110,15 @@ header{
 }
 .cat-picker-btn span#catPickerLabel{color:var(--navy);font-weight:700;}
 .cat-picker-arrow{margin-left:auto;color:var(--ink-soft);}
-.cat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding-bottom:10px;}
-.cat-grid .chip{
-  width:100%;box-sizing:border-box;text-align:center;white-space:normal;
-  padding:12px 10px;border-radius:10px;
+.cat-grid{display:flex;flex-direction:column;gap:14px;padding-bottom:10px;}
+.cat-grid .chip.all{width:100%;box-sizing:border-box;text-align:center;white-space:normal;padding:12px 10px;border-radius:10px;}
+.cat-cols{display:grid;gap:14px;}
+.cat-col{display:flex;flex-direction:column;gap:8px;}
+.cat-col-title{
+  font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--navy);padding-bottom:4px;border-bottom:2px solid var(--line);
 }
-.cat-grid .chip.all{grid-column:1 / -1;}
+.cat-col .chip{width:100%;box-sizing:border-box;text-align:left;white-space:normal;padding:10px 12px;border-radius:10px;}
 
 /* ---------- PRODUCT LIST ---------- */
 main{flex:1;overflow-y:auto;padding:4px 16px 100px;}
@@ -521,27 +524,53 @@ function renderOrigenChips(){
 }
 
 function renderChips(){
-  const cats = Array.from(new Set(catalogo.map(p=>p.categoria).filter(Boolean))).sort();
   const grid = $('catGrid');
   grid.innerHTML = '';
+
   const all = document.createElement('div');
-  all.className = 'chip all' + (activeCategoria === '' ? ' active' : '');
-  all.textContent = 'Todos los rubros';
-  all.onclick = () => { activeCategoria = ''; cerrarSelectorRubro(); renderProducts($('searchInput').value); };
+  all.className = 'chip all' + (activeCategoria === '' && activeOrigen === '' ? ' active' : '');
+  all.textContent = 'Todos los rubros (ambas listas)';
+  all.onclick = () => { activeCategoria = ''; activeOrigen = ''; cerrarSelectorRubro(); };
   grid.appendChild(all);
-  cats.forEach(c => {
-    const chip = document.createElement('div');
-    chip.className = 'chip' + (activeCategoria === c ? ' active' : '');
-    chip.textContent = c;
-    chip.onclick = () => { activeCategoria = c; cerrarSelectorRubro(); renderProducts($('searchInput').value); };
-    grid.appendChild(chip);
+
+  const origenes = Array.from(new Set(catalogo.map(p=>p.origen).filter(Boolean))).sort();
+  const cols = document.createElement('div');
+  cols.className = 'cat-cols';
+  cols.style.gridTemplateColumns = `repeat(${origenes.length || 1}, 1fr)`;
+
+  origenes.forEach(origen => {
+    const col = document.createElement('div');
+    col.className = 'cat-col';
+    const titulo = document.createElement('div');
+    titulo.className = 'cat-col-title';
+    titulo.textContent = origen;
+    col.appendChild(titulo);
+
+    const cats = Array.from(new Set(
+      catalogo.filter(p => p.origen === origen).map(p => p.categoria).filter(Boolean)
+    )).sort();
+
+    cats.forEach(c => {
+      const chip = document.createElement('div');
+      const activo = activeCategoria === c && activeOrigen === origen;
+      chip.className = 'chip' + (activo ? ' active' : '');
+      chip.textContent = c;
+      chip.onclick = () => { activeCategoria = c; activeOrigen = origen; cerrarSelectorRubro(); };
+      col.appendChild(chip);
+    });
+
+    cols.appendChild(col);
   });
+
+  grid.appendChild(cols);
   $('catPickerLabel').textContent = activeCategoria || 'Todos';
 }
 
 function cerrarSelectorRubro(){
+  renderOrigenChips();
   renderChips();
   $('catOverlay').classList.remove('open');
+  renderProducts($('searchInput').value);
 }
 $('catPickerBtn').onclick = () => { renderChips(); $('catOverlay').classList.add('open'); };
 $('catCloseBtn').onclick = () => $('catOverlay').classList.remove('open');
