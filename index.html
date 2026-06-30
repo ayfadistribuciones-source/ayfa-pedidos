@@ -603,7 +603,19 @@ function openCartSheet(){
   renderClientArea();
   $('cartOverlay').classList.add('open');
 }
-function closeCartSheet(){ $('cartOverlay').classList.remove('open'); }
+function closeCartSheet(){
+  $('cartOverlay').classList.remove('open');
+  if (editingPedidoId) {
+    // Se cerró el carrito sin guardar los cambios de la edición: volvemos
+    // todo a estado normal para que el próximo pedido sea uno nuevo, no
+    // siga "pegado" a la edición anterior.
+    editingPedidoId = null;
+    cart = {};
+    selectedCliente = null;
+    $('confirmBtn').textContent = 'Confirmar pedido';
+    updateCartBar();
+  }
+}
 
 function renderCartItems(){
   const wrap = $('cartItems');
@@ -722,6 +734,36 @@ $('confirmBtn').onclick = async () => {
     codigo: item.codigo, descripcion: item.descripcion, precio: item.precio, cantidad: qty, origen: item.origen || ''
   }));
   const total = items.reduce((s,i)=>s+i.cantidad*i.precio,0);
+
+  $('confirmBtn').disabled = true;
+
+  if (editingPedidoId) {
+    // ---- Modo edición: actualiza un pedido ya cargado (solo si sigue Pendiente) ----
+    $('confirmBtn').textContent = 'Guardando...';
+    try {
+      const res = await apiPost({ action: 'editar_pedido', id: editingPedidoId, items });
+      if (res.ok) {
+        showToast('Pedido ' + editingPedidoId + ' actualizado');
+        cart = {}; selectedCliente = null;
+        const idEditado = editingPedidoId;
+        editingPedidoId = null;
+        updateCartBar();
+        closeCartSheet();
+        $('confirmBtn').textContent = 'Confirmar pedido';
+        await cargarHistorial(); // refresca la lista para que se vea el total nuevo
+      } else {
+        showToast('No se pudo guardar: ' + (res.error || ''));
+        $('confirmBtn').textContent = 'Guardar cambios del pedido ' + editingPedidoId;
+      }
+    } catch (err) {
+      showToast('No se pudo guardar. Revisá tu conexión.');
+      $('confirmBtn').textContent = 'Guardar cambios del pedido ' + editingPedidoId;
+    }
+    updateConfirmState();
+    return;
+  }
+
+  // ---- Modo normal: pedido nuevo ----
   const pedido = {
     vendedor,
     cliente: selectedCliente.nombre,
@@ -729,7 +771,6 @@ $('confirmBtn').onclick = async () => {
     direccion: selectedCliente.direccion || '',
     items, total
   };
-  $('confirmBtn').disabled = true;
   $('confirmBtn').textContent = 'Enviando...';
   try {
     const res = await apiPost({ action: 'nuevo_pedido', pedido });
@@ -760,6 +801,7 @@ $('newOrderBtn').onclick = () => {
 // ---------------- HISTORIAL DE PEDIDOS DE HOY ----------------
 let pedidosHoy = [];
 let pedidoActivo = null;
+let editingPedidoId = null; // si no es null, el carrito está editando un pedido existente en vez de crear uno nuevo
 
 $('historyBtn').onclick = openHistorial;
 $('historyCloseBtn').onclick = () => $('historyOverlay').classList.remove('open');
@@ -828,16 +870,46 @@ function abrirDetallePedido(p){
     </div>`;
   });
   html += `<div class="det-total"><span style="color:var(--ink-soft);font-size:13px;text-transform:uppercase;">Total</span><span class="num">${money(p.total)}</span></div>`;
+  const esPendiente = String(p.estado || '').toLowerCase() === 'pendiente';
   html += `
     <div class="wa-actions">
       <button class="wa-btn text" id="waTextBtn">💬 Texto por WhatsApp</button>
       <button class="wa-btn pdf" id="waPdfBtn">📄 PDF por WhatsApp</button>
     </div>
   `;
+  if (esPendiente) {
+    html += `<button class="wa-btn pdf" id="editarPedidoBtn" style="width:100%;margin-top:8px;background:var(--ink-soft, #555);">✏️ Editar pedido</button>`;
+  } else {
+    html += `<div class="hint" style="margin-top:10px;text-align:center;">Este pedido ya está "${p.estado}" y no se puede editar desde la app.</div>`;
+  }
   $('detalleBody').innerHTML = html;
   $('waTextBtn').onclick = compartirTexto;
   $('waPdfBtn').onclick = compartirPDF;
+  if (esPendiente) $('editarPedidoBtn').onclick = () => editarPedidoDesdeDetalle(p);
   $('detalleOverlay').classList.add('open');
+}
+
+// Carga un pedido existente en el carrito para que el vendedor pueda
+// agregar, sacar o cambiar cantidades, y después confirmar la edición.
+function editarPedidoDesdeDetalle(p){
+  editingPedidoId = p.id;
+  cart = {};
+  (p.items || []).forEach(it => {
+    cart[it.codigo] = {
+      item: { codigo: it.codigo, descripcion: it.descripcion, precio: it.precio, origen: it.origen || '' },
+      qty: it.cantidad
+    };
+  });
+  selectedCliente = { nombre: p.cliente, telefono: p.telefono || '', direccion: p.direccion || '' };
+  $('detalleOverlay').classList.remove('open');
+  $('historyOverlay').classList.remove('open');
+  renderProducts('');
+  renderClientArea();
+  updateCartBar();
+  updateConfirmState();
+  $('confirmBtn').textContent = 'Guardar cambios del pedido ' + p.id;
+  openCartSheet();
+  showToast('Editando pedido ' + p.id + ' — agregá, sacá o cambiá cantidades y guardá');
 }
 
 function compartirTexto(){
