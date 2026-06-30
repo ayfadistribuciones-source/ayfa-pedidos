@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -165,6 +166,27 @@ function render(){
   });
 }
 
+// Descarga el PDF directo al navegador (sin abrir pestaña nueva).
+// Crea un link temporal invisible, le asigna el blob como URL, lo "toca"
+// automáticamente para disparar la descarga y lo destruye. Así el archivo
+// cae directo a la carpeta de Descargas del navegador, sin fricción.
+function descargarPDF(base64, nombre){
+  try {
+    const byteChars = atob(base64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+    const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nombre;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    return true;
+  } catch (e) { return false; }
+}
+
 async function generarUno(id){
   const btn = $('btn-' + id);
   const original = btn.textContent;
@@ -177,22 +199,16 @@ async function generarUno(id){
       btn.disabled = false; btn.textContent = original;
       return;
     }
-    // Abrimos el PDF para que lo pueda ver/descargar/imprimir al toque.
-    try {
-      const byteChars = atob(res.pdfBase64);
-      const byteNumbers = new Array(byteChars.length);
-      for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
-      const blob = new Blob([new Uint8Array(byteNumbers)], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-    } catch (e) {
-      window.open(res.driveUrl, '_blank');
-    }
+    // Descarga directa al navegador — cae en "Descargas" sin abrir nada.
+    // Si el navegador no soporta la descarga directa, abre el Drive como respaldo.
+    const descargado = descargarPDF(res.pdfBase64, res.filename);
+    if (!descargado) window.open(res.driveUrl, '_blank');
+
     const row = $('row-' + id);
     row.classList.add('hecho');
-    btn.textContent = '✅ Facturado';
+    btn.textContent = '✅ Descargado y marcado';
     pendientes = pendientes.filter(p => p.id !== id);
-    setTimeout(() => { row.remove(); render(); }, 600);
+    setTimeout(() => { row.remove(); render(); }, 800);
   } catch (err) {
     showToast('Sin conexión, probá de nuevo');
     btn.disabled = false; btn.textContent = original;
@@ -208,14 +224,21 @@ $('genTodosBtn').onclick = async () => {
   for (const id of ids) {
     try {
       const res = await apiPost({ action: 'generar_y_marcar_facturacion', id });
-      if (res.ok) { ok++; const row = $('row-'+id); if (row) row.classList.add('hecho'); }
-      else fallaron++;
+      if (res.ok) {
+        ok++;
+        // Descarga cada PDF de a uno (pequeña pausa entre descargas para
+        // que el navegador no las agrupe y bloquee las siguientes).
+        descargarPDF(res.pdfBase64, res.filename);
+        await new Promise(r => setTimeout(r, 800));
+        const row = $('row-'+id);
+        if (row) row.classList.add('hecho');
+      } else { fallaron++; }
     } catch (e) { fallaron++; }
   }
   await cargar();
   $('genTodosBtn').disabled = false;
   $('genTodosBtn').textContent = 'Generar PDF de todos los pendientes';
-  showToast('✅ ' + ok + ' generado(s)' + (fallaron ? ' · ⚠️ ' + fallaron + ' con error' : '') + ' — abrilos uno por uno desde la lista si hace falta reimprimir');
+  showToast('✅ ' + ok + ' descargado(s)' + (fallaron ? ' · ⚠️ ' + fallaron + ' con error' : '') + ' — revisá la carpeta Descargas');
 };
 
 $('refreshBtn').onclick = cargar;
