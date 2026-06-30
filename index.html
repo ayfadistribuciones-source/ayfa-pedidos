@@ -818,14 +818,29 @@ async function compartirPDF(){
   const btn = $('waPdfBtn');
   const original = btn.textContent;
   btn.disabled = true;
-  btn.textContent = 'Generando PDF... (puede tardar unos segundos)';
+  btn.textContent = 'Generando PDF...';
+
+  // Importante: la ventana se abre AHORA, en el mismo clic, así el
+  // navegador no la bloquea como pop-up (si se abre después de esperar
+  // la respuesta del servidor, ya no cuenta como "acción directa" y la
+  // bloquea). Después solo la redirigimos cuando tengamos el resultado.
+  const ventana = window.open('', '_blank');
+  if (ventana) {
+    ventana.document.write('<body style="font-family:Arial,sans-serif;padding:24px;color:#333;">Generando el PDF, un momento...</body>');
+  }
+
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
       body: JSON.stringify({ action: 'generar_pdf', id: pedidoActivo.id })
     }).then(r => r.json());
 
-    if (!res.ok) { showToast('No se pudo generar el PDF: ' + (res.error || '')); btn.disabled = false; btn.textContent = original; return; }
+    if (!res.ok) {
+      if (ventana) ventana.close();
+      showToast('No se pudo generar el PDF: ' + (res.error || ''));
+      btn.disabled = false; btn.textContent = original;
+      return;
+    }
 
     // Primero intenta compartir el archivo de verdad (anda en la mayoría de
     // los Android e iPhone modernos con Chrome/Safari actualizado).
@@ -835,17 +850,23 @@ async function compartirPDF(){
       for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
       const file = new File([new Uint8Array(byteNumbers)], res.filename, { type: 'application/pdf' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        if (ventana) ventana.close();
         await navigator.share({ files: [file], title: res.filename, text: 'Pedido ' + pedidoActivo.id });
         btn.disabled = false; btn.textContent = original;
         return;
       }
     } catch (shareErr) { /* sigue al método de respaldo de abajo */ }
 
-    // Si el celular no permite compartir el archivo directo, se abre el PDF
-    // para que lo compartan manualmente desde ahí.
-    window.open(res.driveUrl, '_blank');
+    // Si el dispositivo no permite compartir el archivo directo, mostramos
+    // el PDF en la misma ventana que ya teníamos abierta (sin pop-up nuevo).
+    if (ventana) {
+      ventana.location.href = res.driveUrl;
+    } else {
+      window.open(res.driveUrl, '_blank');
+    }
     showToast('Se abrió el PDF — compartilo manualmente por WhatsApp desde ahí');
   } catch (err) {
+    if (ventana) ventana.close();
     showToast('No se pudo generar el PDF. Revisá tu conexión.');
   }
   btn.disabled = false;
