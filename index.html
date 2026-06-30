@@ -243,6 +243,17 @@ main{flex:1;overflow-y:auto;padding:4px 16px 100px;}
 .hist-estado.pendiente{background:#FCEFD9;color:#9A6A1B;}
 .hist-estado.impreso{background:#DCEAF7;color:#1C5F8C;}
 .hist-estado.facturado{background:#DCEFE3;color:#1F7A45;}
+.hist-estado.sin-enviar{background:#FDE2E1;color:#B23B36;}
+.offline-note{
+  margin-top:14px;padding:12px 14px;border-radius:10px;background:#FCEFD9;color:#7A4E12;
+  font-size:13px;font-weight:600;line-height:1.4;text-align:center;
+}
+.cola-badge{
+  display:none;align-items:center;gap:6px;background:#FDE2E1;color:#B23B36;
+  border:1px solid #F3B9B6;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;
+  margin:0 16px 10px;width:fit-content;
+}
+.cola-badge.show{display:flex;}
 
 .det-item{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13.5px;}
 .det-item .diname{font-weight:600;}
@@ -294,6 +305,8 @@ main{flex:1;overflow-y:auto;padding:4px 16px 100px;}
         <button class="logout" id="logoutBtn">Cambiar vendedor</button>
       </div>
     </header>
+
+    <div id="colaBadge" class="cola-badge"><span id="colaBadgeTexto">0 pedidos sin enviar</span> · Tocar para reintentar</div>
 
     <div class="searchbar">
       <input id="searchInput" type="text" placeholder="Buscar producto por nombre o código...">
@@ -363,9 +376,12 @@ main{flex:1;overflow-y:auto;padding:4px 16px 100px;}
   <div class="success-screen" id="successScreen" style="display:none;">
     <div class="ticket">
       <div class="check">✅</div>
-      <div class="tlbl">Pedido registrado</div>
+      <div class="tlbl" id="successTitle">Pedido registrado</div>
       <div class="tid" id="successId">P-00000</div>
       <div class="tlbl" id="successClient"></div>
+      <div id="successOfflineNote" class="offline-note" style="display:none;">
+        ⏳ SIN ENVIAR AÚN — quedó guardado en este teléfono y se va a mandar solo apenas vuelva la señal. No hace falta que hagas nada más.
+      </div>
     </div>
     <button class="ok-btn" id="newOrderBtn">Nuevo pedido</button>
   </div>
@@ -426,10 +442,25 @@ function pedirClave(mensaje){
   return v;
 }
 
+// Como en una camioneta de reparto la señal puede ser mala, no dejamos que
+// un pedido se quede "colgado" esperando para siempre: si no hay respuesta
+// en 10 segundos, lo tratamos como sin conexión y lo encolamos. Mejor
+// fallar rápido y guardar el pedido, que tardar 40 segundos para terminar
+// fallando igual.
+function fetchConTimeout(url, opts, timeoutMs){
+  timeoutMs = timeoutMs || 10000;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  return fetch(url, Object.assign({}, opts, { signal: ctrl.signal })).finally(() => clearTimeout(t));
+}
+
 // Envuelve fetch agregando la clave y reintentando una vez si el servidor
 // avisa que es inválida (clave vieja guardada en el teléfono, por ejemplo).
+// Si no hay conexión o se cuelga, esto TIRA UN ERROR (no devuelve {error}),
+// así el código que llama puede diferenciar "el servidor dijo que no" de
+// "no hay señal" y decidir encolar en el segundo caso.
 async function apiGet(params){
-  const intentar = () => fetch(API_URL + '?' + params + '&clave=' + encodeURIComponent(claveAcceso)).then(r=>r.json());
+  const intentar = () => fetchConTimeout(API_URL + '?' + params + '&clave=' + encodeURIComponent(claveAcceso)).then(r=>r.json());
   let res = await intentar();
   if (res && res.error === 'CLAVE_INVALIDA') {
     pedirClave('Clave incorrecta. Probá de nuevo:');
@@ -439,7 +470,7 @@ async function apiGet(params){
 }
 
 async function apiPost(payload){
-  const intentar = () => fetch(API_URL, {
+  const intentar = () => fetchConTimeout(API_URL, {
     method: 'POST',
     body: JSON.stringify(Object.assign({}, payload, { clave: claveAcceso }))
   }).then(r=>r.json());
@@ -449,6 +480,78 @@ async function apiPost(payload){
     res = await intentar();
   }
   return res;
+}
+
+// ---------------- COLA OFFLINE ----------------
+// Acá vive todo lo necesario para que un pedido NUNCA se pierda por falta
+// de señal: se guarda en el teléfono al toque y se reintenta mandar solo
+// cuando hay conexión, sin que el vendedor tenga que hacer nada extra.
+function cargarCola(){
+  try { return JSON.parse(localStorage.getItem('ayfa_cola') || '[]'); } catch (e) { return []; }
+}
+function guardarCola(cola){
+  localStorage.setItem('ayfa_cola', JSON.stringify(cola));
+  actualizarBadgeCola();
+}
+function nuevoRefLocal(){
+  const n = Number(localStorage.getItem('ayfa_contador_local') || '0') + 1;
+  localStorage.setItem('ayfa_contador_local', String(n));
+  return 'SIN-ENVIAR-' + n;
+}
+function actualizarBadgeCola(){
+  const cola = cargarCola();
+  const badge = $('colaBadge');
+  if (!cola.length) { badge.classList.remove('show'); return; }
+  $('colaBadgeTexto').textContent = cola.length + (cola.length === 1 ? ' pedido sin enviar' : ' pedidos sin enviar');
+  badge.classList.add('show');
+}
+$('colaBadge').onclick = () => sincronizarCola(false);
+
+// Recorre la cola e intenta mandar cada cosa pendiente. Si sigue sin haber
+// señal, no pasa nada raro: el item queda igual en la cola para el próximo
+// intento (automático o manual). Si el servidor responde con un error real
+// (no de conexión, ej. "este pedido ya no está pendiente"), se lo dejamos
+// ver al vendedor para que lo revise, en vez de reintentar para siempre.
+let sincronizando = false;
+async function sincronizarCola(silencioso){
+  if (sincronizando) return;
+  const cola = cargarCola();
+  if (!cola.length) { actualizarBadgeCola(); return; }
+  sincronizando = true;
+  let enviados = 0, conError = 0;
+  const restante = [];
+  for (const item of cola) {
+    try {
+      let res;
+      if (item.accion === 'nuevo_pedido') {
+        res = await apiPost({ action: 'nuevo_pedido', pedido: item.pedido });
+      } else if (item.accion === 'editar_pedido') {
+        res = await apiPost({ action: 'editar_pedido', id: item.idPedido, items: item.items });
+      } else if (item.accion === 'nuevo_cliente') {
+        res = await apiPost({ action: 'nuevo_cliente', cliente: item.cliente });
+      }
+      if (res && res.ok) {
+        enviados++;
+      } else {
+        item.ultimoError = res ? res.error : 'Error desconocido';
+        item.intentos = (item.intentos || 0) + 1;
+        restante.push(item);
+        conError++;
+      }
+    } catch (err) {
+      // Sigue sin conexión: lo dejamos tal cual para el próximo intento.
+      restante.push(item);
+    }
+  }
+  guardarCola(restante);
+  sincronizando = false;
+  if (!silencioso || enviados) {
+    if (enviados) showToast('✅ ' + enviados + ' pedido(s) sin enviar se mandaron correctamente');
+    if (conError) showToast('⚠️ Hay ' + conError + ' pendiente(s) con error del servidor — revisalos en "Pedidos de hoy"');
+  }
+  if (typeof pedidosHoy !== 'undefined' && $('historyOverlay').classList.contains('open')) {
+    cargarHistorial();
+  }
 }
 
 // ---------------- LOGIN ----------------
@@ -700,6 +803,7 @@ $('addMoreBtn').onclick = () => {
 // armando, igual que en un pedido nuevo).
 function cancelarEdicionPedido(){
   editingPedidoId = null;
+  editingColaRef = null;
   cart = {};
   selectedCliente = null;
   $('confirmBtn').textContent = 'Confirmar pedido';
@@ -830,7 +934,14 @@ async function saveNewClient(){
   selectedCliente = cliente;
   clientes.push(cliente);
   renderClientArea();
-  apiPost({ action: 'nuevo_cliente', cliente }).catch(()=>{});
+  apiPost({ action: 'nuevo_cliente', cliente }).catch(() => {
+    // Sin conexión: el cliente queda usable igual en este pedido (ya está
+    // en `clientes` en memoria), y lo encolamos para que se guarde en la
+    // planilla apenas vuelva la señal.
+    const cola = cargarCola();
+    cola.push({ accion: 'nuevo_cliente', cliente, creado: Date.now(), intentos: 0 });
+    guardarCola(cola);
+  });
 }
 
 function updateConfirmState(){
@@ -846,6 +957,30 @@ $('confirmBtn').onclick = async () => {
   const total = items.reduce((s,i)=>s+i.cantidad*i.precio,0);
 
   $('confirmBtn').disabled = true;
+
+  if (editingColaRef) {
+    // ---- Edición LOCAL: el pedido todavía está sin enviar, así que esto
+    // no toca el servidor para nada, se guarda directo en el teléfono. ----
+    const cola = cargarCola();
+    const item = cola.find(it => it.refLocal === editingColaRef);
+    if (item) {
+      item.pedido.items = items;
+      item.pedido.total = total;
+      guardarCola(cola);
+      showToast('Pedido ' + editingColaRef + ' actualizado (sigue sin enviar)');
+    } else {
+      showToast('No se encontró el pedido en la cola — puede que ya se haya enviado');
+    }
+    cart = {}; selectedCliente = null;
+    editingColaRef = null;
+    updateCartBar();
+    closeCartSheet();
+    $('confirmBtn').textContent = 'Confirmar pedido';
+    $('cancelEditBtn').style.display = 'none';
+    if ($('historyOverlay').classList.contains('open')) cargarHistorial();
+    updateConfirmState();
+    return;
+  }
 
   if (editingPedidoId) {
     // ---- Modo edición: actualiza un pedido ya cargado (solo si sigue Pendiente) ----
@@ -867,8 +1002,20 @@ $('confirmBtn').onclick = async () => {
         $('confirmBtn').textContent = 'Guardar cambios del pedido ' + editingPedidoId;
       }
     } catch (err) {
-      showToast('No se pudo guardar. Revisá tu conexión.');
-      $('confirmBtn').textContent = 'Guardar cambios del pedido ' + editingPedidoId;
+      // Sin conexión: encolamos la edición para que se aplique sola cuando
+      // vuelva la señal. Ojo: si para entonces vos ya cambiaste el estado
+      // del pedido en la planilla, el servidor la va a rechazar al
+      // sincronizar y vas a verlo marcado con error en "Pedidos de hoy".
+      const cola = cargarCola();
+      cola.push({ accion: 'editar_pedido', idPedido: editingPedidoId, items, creado: Date.now(), intentos: 0 });
+      guardarCola(cola);
+      showToast('Sin conexión: el cambio del pedido ' + editingPedidoId + ' se guardó y se va a aplicar solo apenas vuelva la señal');
+      cart = {}; selectedCliente = null;
+      editingPedidoId = null;
+      updateCartBar();
+      closeCartSheet();
+      $('confirmBtn').textContent = 'Confirmar pedido';
+      $('cancelEditBtn').style.display = 'none';
     }
     updateConfirmState();
     return;
@@ -886,8 +1033,10 @@ $('confirmBtn').onclick = async () => {
   try {
     const res = await apiPost({ action: 'nuevo_pedido', pedido });
     if (res.ok) {
+      $('successTitle').textContent = 'Pedido registrado';
       $('successId').textContent = res.id;
       $('successClient').textContent = 'Cliente: ' + selectedCliente.nombre;
+      $('successOfflineNote').style.display = 'none';
       cart = {}; selectedCliente = null;
       updateCartBar();
       closeCartSheet();
@@ -897,7 +1046,22 @@ $('confirmBtn').onclick = async () => {
       showToast('Error al guardar: ' + (res.error || ''));
     }
   } catch(err){
-    showToast('No se pudo enviar. Revisá tu conexión.');
+    // Sin conexión (o se colgó): NO perdemos el pedido. Lo guardamos en el
+    // teléfono y se manda solo apenas vuelva la señal — el vendedor sigue
+    // atendiendo clientes sin esperar nada.
+    const refLocal = nuevoRefLocal();
+    const cola = cargarCola();
+    cola.push({ refLocal, accion: 'nuevo_pedido', pedido, creado: Date.now(), intentos: 0 });
+    guardarCola(cola);
+    $('successTitle').textContent = 'Pedido guardado en el teléfono';
+    $('successId').textContent = refLocal;
+    $('successClient').textContent = 'Cliente: ' + selectedCliente.nombre;
+    $('successOfflineNote').style.display = 'block';
+    cart = {}; selectedCliente = null;
+    updateCartBar();
+    closeCartSheet();
+    $('mainApp').style.display = 'none';
+    $('successScreen').style.display = 'flex';
   }
   $('confirmBtn').textContent = 'Confirmar pedido';
   updateConfirmState();
@@ -913,6 +1077,7 @@ $('newOrderBtn').onclick = () => {
 let pedidosHoy = [];
 let pedidoActivo = null;
 let editingPedidoId = null; // si no es null, el carrito está editando un pedido existente en vez de crear uno nuevo
+let editingColaRef = null; // si no es null, está editando un pedido que todavía está SIN ENVIAR (edición local, sin red)
 
 $('historyBtn').onclick = openHistorial;
 $('historyCloseBtn').onclick = () => $('historyOverlay').classList.remove('open');
@@ -928,29 +1093,63 @@ function openHistorial(){
 async function cargarHistorial(){
   const body = $('historyBody');
   body.innerHTML = '<div class="hint">Cargando...</div>';
+
+  // Los pedidos que están en la cola (todavía no se mandaron) los armamos
+  // como si fueran pedidos normales, para que aparezcan en la misma lista,
+  // bien marcados como "Sin enviar".
+  const colaPedidos = cargarCola()
+    .filter(it => it.accion === 'nuevo_pedido')
+    .map(it => ({
+      id: it.refLocal,
+      fecha: it.creado,
+      vendedor: it.pedido.vendedor,
+      cliente: it.pedido.cliente,
+      telefono: it.pedido.telefono,
+      direccion: it.pedido.direccion,
+      items: it.pedido.items,
+      total: it.pedido.total,
+      estado: 'Sin enviar',
+      _colaRef: it.refLocal
+    }));
+
+  let pedidosServidor = [];
+  let sinConexion = false;
   try {
     const res = await apiGet('action=pedidos');
-    if (!Array.isArray(res)) { body.innerHTML = '<div class="hint">No se pudo cargar el historial.</div>'; return; }
-    const hoyStr = new Date().toDateString();
-    pedidosHoy = res.filter(p => new Date(p.fecha).toDateString() === hoyStr);
-    renderHistorial();
+    if (Array.isArray(res)) {
+      const hoyStr = new Date().toDateString();
+      pedidosServidor = res.filter(p => new Date(p.fecha).toDateString() === hoyStr);
+    }
   } catch (err) {
-    body.innerHTML = '<div class="hint">No se pudo cargar. Revisá tu conexión.</div>';
+    sinConexion = true;
   }
+
+  pedidosHoy = [...colaPedidos, ...pedidosServidor];
+
+  if (!pedidosHoy.length) {
+    body.innerHTML = sinConexion
+      ? '<div class="hint">Sin conexión y no hay pedidos guardados en el teléfono. Apenas tengas señal, volvé a intentar.</div>'
+      : '<div class="hint">Todavía no hay pedidos hoy.</div>';
+    return;
+  }
+
+  renderHistorial(sinConexion);
 }
 
-function renderHistorial(){
+function renderHistorial(sinConexion){
   const body = $('historyBody');
   if (!pedidosHoy.length) { body.innerHTML = '<div class="hint">Todavía no hay pedidos hoy.</div>'; return; }
 
   const totalDia = pedidosHoy.reduce((s, p) => s + Number(p.total || 0), 0);
-  body.innerHTML = `<div class="hint" style="text-align:left;padding:0 0 12px;">${pedidosHoy.length} pedido(s) · Total del día: <b>${money(totalDia)}</b></div>`;
+  let aviso = `${pedidosHoy.length} pedido(s) · Total del día: <b>${money(totalDia)}</b>`;
+  if (sinConexion) aviso += '<br><span style="color:#B23B36;">Sin conexión — mostrando solo lo guardado en el teléfono.</span>';
+  body.innerHTML = `<div class="hint" style="text-align:left;padding:0 0 12px;">${aviso}</div>`;
 
   pedidosHoy.forEach(p => {
     const row = document.createElement('div');
     row.className = 'hist-row';
     const hora = new Date(p.fecha).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-    const estadoClass = String(p.estado || '').toLowerCase();
+    const estadoClass = String(p.estado || '').toLowerCase().replace(/\s+/g, '-');
     row.innerHTML = `
       <div>
         <div class="hcliente">${p.cliente}</div>
@@ -981,29 +1180,70 @@ function abrirDetallePedido(p){
     </div>`;
   });
   html += `<div class="det-total"><span style="color:var(--ink-soft);font-size:13px;text-transform:uppercase;">Total</span><span class="num">${money(p.total)}</span></div>`;
+
+  const esColaSinEnviar = !!p._colaRef;
   const esPendiente = String(p.estado || '').toLowerCase() === 'pendiente';
-  html += `
-    <div class="wa-actions">
-      <button class="wa-btn text" id="waTextBtn">💬 Texto por WhatsApp</button>
-      <button class="wa-btn pdf" id="waPdfBtn">📄 PDF por WhatsApp</button>
-    </div>
-  `;
-  if (esPendiente) {
-    html += `<button class="wa-btn pdf" id="editarPedidoBtn" style="width:100%;margin-top:8px;background:var(--ink-soft, #555);">✏️ Editar pedido</button>`;
+
+  if (esColaSinEnviar) {
+    // Pedido todavía no enviado: el PDF no existe en el servidor todavía,
+    // así que ese botón no aplica. El texto por WhatsApp sí funciona porque
+    // es 100% local. Editar/eliminar acá son instantáneos, sin red.
+    html += `
+      <div class="offline-note" style="margin-top:6px;">⏳ Sin enviar todavía — se manda solo cuando vuelva la señal.</div>
+      <div class="wa-actions">
+        <button class="wa-btn text" id="waTextBtn">💬 Texto por WhatsApp</button>
+      </div>
+      <button class="wa-btn pdf" id="editarPedidoBtn" style="width:100%;margin-top:8px;background:var(--ink-soft, #555);">✏️ Editar pedido</button>
+      <button id="eliminarColaBtn" style="width:100%;margin-top:8px;background:none;border:none;color:#B23B36;font-size:13px;text-decoration:underline;padding:8px;">Eliminar este pedido (no se va a enviar)</button>
+    `;
+    $('detalleBody').innerHTML = html;
+    $('waTextBtn').onclick = compartirTexto;
+    $('editarPedidoBtn').onclick = () => editarPedidoDesdeDetalle(p);
+    $('eliminarColaBtn').onclick = () => eliminarDeCola(p._colaRef);
   } else {
-    html += `<div class="hint" style="margin-top:10px;text-align:center;">Este pedido ya está "${p.estado}" y no se puede editar desde la app.</div>`;
+    html += `
+      <div class="wa-actions">
+        <button class="wa-btn text" id="waTextBtn">💬 Texto por WhatsApp</button>
+        <button class="wa-btn pdf" id="waPdfBtn">📄 PDF por WhatsApp</button>
+      </div>
+    `;
+    if (esPendiente) {
+      html += `<button class="wa-btn pdf" id="editarPedidoBtn" style="width:100%;margin-top:8px;background:var(--ink-soft, #555);">✏️ Editar pedido</button>`;
+    } else {
+      html += `<div class="hint" style="margin-top:10px;text-align:center;">Este pedido ya está "${p.estado}" y no se puede editar desde la app.</div>`;
+    }
+    $('detalleBody').innerHTML = html;
+    $('waTextBtn').onclick = compartirTexto;
+    $('waPdfBtn').onclick = compartirPDF;
+    if (esPendiente) $('editarPedidoBtn').onclick = () => editarPedidoDesdeDetalle(p);
   }
-  $('detalleBody').innerHTML = html;
-  $('waTextBtn').onclick = compartirTexto;
-  $('waPdfBtn').onclick = compartirPDF;
-  if (esPendiente) $('editarPedidoBtn').onclick = () => editarPedidoDesdeDetalle(p);
   $('detalleOverlay').classList.add('open');
+}
+
+// Saca un pedido de la cola sin mandarlo nunca (el vendedor se arrepintió
+// o lo cargó por error). No toca el servidor porque ese pedido nunca llegó
+// a existir ahí.
+function eliminarDeCola(refLocal){
+  if (!confirm('¿Eliminar este pedido sin enviar? No se va a poder recuperar.')) return;
+  const cola = cargarCola().filter(it => it.refLocal !== refLocal);
+  guardarCola(cola);
+  $('detalleOverlay').classList.remove('open');
+  showToast('Pedido eliminado');
+  cargarHistorial();
 }
 
 // Carga un pedido existente en el carrito para que el vendedor pueda
 // agregar, sacar o cambiar cantidades, y después confirmar la edición.
+// Si el pedido todavía está en la cola sin enviar (_colaRef), la edición
+// es local e instantánea, sin tocar el servidor.
 function editarPedidoDesdeDetalle(p){
-  editingPedidoId = p.id;
+  if (p._colaRef) {
+    editingColaRef = p._colaRef;
+    editingPedidoId = null;
+  } else {
+    editingPedidoId = p.id;
+    editingColaRef = null;
+  }
   cart = {};
   (p.items || []).forEach(it => {
     cart[it.codigo] = {
@@ -1102,10 +1342,20 @@ function startApp(){
   $('mainApp').style.display = 'flex';
   $('whoLabel').textContent = vendedor;
   loadData();
+  actualizarBadgeCola();
+  sincronizarCola(true); // intento silencioso al abrir, por si quedó algo pendiente de la vez pasada
 }
 
 if (!claveAcceso) pedirClave();
 if (vendedor) { startApp(); } else { renderLogin(); }
+
+// En cuanto el teléfono recupera señal, mandamos solo lo que esté pendiente,
+// sin que el vendedor tenga que acordarse de nada.
+window.addEventListener('online', () => sincronizarCola(true));
+// Además reintentamos cada 20 segundos mientras la app esté abierta, porque
+// en una camioneta de reparto la señal va y viene y el evento 'online' del
+// navegador no siempre se dispara a tiempo.
+setInterval(() => sincronizarCola(true), 20000);
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(()=>{});
