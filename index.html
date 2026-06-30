@@ -820,13 +820,15 @@ async function compartirPDF(){
   btn.disabled = true;
   btn.textContent = 'Generando PDF...';
 
-  // Importante: la ventana se abre AHORA, en el mismo clic, así el
-  // navegador no la bloquea como pop-up (si se abre después de esperar
-  // la respuesta del servidor, ya no cuenta como "acción directa" y la
-  // bloquea). Después solo la redirigimos cuando tengamos el resultado.
-  const ventana = window.open('', '_blank');
-  if (ventana) {
-    ventana.document.write('<body style="font-family:Arial,sans-serif;padding:24px;color:#333;">Generando el PDF, un momento...</body>');
+  // Detecta si estamos abiertos DENTRO del navegador embebido de WhatsApp
+  // (cuando se toca un link desde un chat). Ahí adentro tanto window.open
+  // como navigator.share suelen fallar en silencio: es una limitación de
+  // ese navegador, no del código. Avisamos y cortamos antes de intentar nada.
+  const enNavegadorDeWhatsApp = /\bWhatsApp\b/i.test(navigator.userAgent);
+  if (enNavegadorDeWhatsApp) {
+    showToast('Estás dentro de WhatsApp. Abrí la app desde su ícono en la pantalla de inicio para poder compartir el PDF.');
+    btn.disabled = false; btn.textContent = original;
+    return;
   }
 
   try {
@@ -836,37 +838,40 @@ async function compartirPDF(){
     }).then(r => r.json());
 
     if (!res.ok) {
-      if (ventana) ventana.close();
       showToast('No se pudo generar el PDF: ' + (res.error || ''));
       btn.disabled = false; btn.textContent = original;
       return;
     }
 
-    // Primero intenta compartir el archivo de verdad (anda en la mayoría de
-    // los Android e iPhone modernos con Chrome/Safari actualizado).
+    // Camino principal: selector nativo de compartir. En la PWA instalada
+    // (modo standalone) esto abre el panel de compartir del sistema con
+    // WhatsApp como una de las opciones, sin pasar por Safari para nada.
     try {
       const byteChars = atob(res.pdfBase64);
       const byteNumbers = new Array(byteChars.length);
       for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
       const file = new File([new Uint8Array(byteNumbers)], res.filename, { type: 'application/pdf' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        if (ventana) ventana.close();
         await navigator.share({ files: [file], title: res.filename, text: 'Pedido ' + pedidoActivo.id });
         btn.disabled = false; btn.textContent = original;
         return;
       }
-    } catch (shareErr) { /* sigue al método de respaldo de abajo */ }
-
-    // Si el dispositivo no permite compartir el archivo directo, mostramos
-    // el PDF en la misma ventana que ya teníamos abierta (sin pop-up nuevo).
-    if (ventana) {
-      ventana.location.href = res.driveUrl;
-    } else {
-      window.open(res.driveUrl, '_blank');
+    } catch (shareErr) {
+      // Si el usuario cancela el panel de compartir, no hace falta caer al
+      // método de respaldo ni mostrar error.
+      if (shareErr && shareErr.name === 'AbortError') {
+        btn.disabled = false; btn.textContent = original;
+        return;
+      }
+      /* cualquier otro error: sigue al método de respaldo de abajo */
     }
+
+    // Respaldo: el dispositivo no soporta compartir archivos directo.
+    // Acá sí abrimos una pestaña nueva con el PDF (puede ser bloqueada como
+    // pop-up en algunos navegadores, pero ya no es el camino principal).
+    window.open(res.driveUrl, '_blank');
     showToast('Se abrió el PDF — compartilo manualmente por WhatsApp desde ahí');
   } catch (err) {
-    if (ventana) ventana.close();
     showToast('No se pudo generar el PDF. Revisá tu conexión.');
   }
   btn.disabled = false;
