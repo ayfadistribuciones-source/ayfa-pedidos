@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -287,6 +288,27 @@ let activeOrigen = '';
 const $ = (id) => document.getElementById(id);
 const money = (n) => '$' + Number(n).toLocaleString('es-AR', {maximumFractionDigits:0});
 
+// Saca tildes y pasa a minúsculas, para que la búsqueda no dependa de
+// mayúsculas ni acentos (ej: "Alfajor", "ALFAJÓR", "alfajor" matchean igual).
+function normalizar(s){
+  return String(s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+// Agrega un campo "_buscable" precalculado a cada producto/cliente, para no
+// tener que normalizar el texto en cada tecla que se escribe (más rápido
+// con miles de productos).
+function prepararCatalogoBusqueda(lista){
+  lista.forEach(p => { p._buscable = normalizar(p.descripcion) + ' ' + normalizar(p.codigo); });
+  return lista;
+}
+function prepararClientesBusqueda(lista){
+  lista.forEach(c => { c._buscable = normalizar(c.nombre); });
+  return lista;
+}
+
 function showToast(msg){
   const t = $('toast'); t.textContent = msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'), 2200);
@@ -326,8 +348,8 @@ async function loadData(){
   try {
     const cachedCat = localStorage.getItem('ayfa_catalogo');
     const cachedCli = localStorage.getItem('ayfa_clientes');
-    if (cachedCat) catalogo = JSON.parse(cachedCat);
-    if (cachedCli) clientes = JSON.parse(cachedCli);
+    if (cachedCat) catalogo = prepararCatalogoBusqueda(JSON.parse(cachedCat));
+    if (cachedCli) clientes = prepararClientesBusqueda(JSON.parse(cachedCli));
     renderOrigenChips();
     renderChips();
     renderProducts('');
@@ -337,11 +359,11 @@ async function loadData(){
       fetch(API_URL + '?action=clientes').then(r=>r.json())
     ]);
     if (Array.isArray(r1)) {
-      catalogo = r1;
+      catalogo = prepararCatalogoBusqueda(r1);
       localStorage.setItem('ayfa_catalogo', JSON.stringify(catalogo));
     }
     if (Array.isArray(r2)) {
-      clientes = r2;
+      clientes = prepararClientesBusqueda(r2);
       localStorage.setItem('ayfa_clientes', JSON.stringify(clientes));
     }
     renderOrigenChips();
@@ -397,14 +419,14 @@ function renderChips(){
 
 function renderProducts(query){
   const list = $('productList');
-  query = (query || '').trim().toLowerCase();
+  query = normalizar(query);
   let results;
   if (!query && !activeCategoria && !activeOrigen) {
     results = catalogo.slice(0, 40);
     if (!catalogo.length) { list.innerHTML = '<div class="hint">Cargando catálogo...</div>'; return; }
   } else {
     results = catalogo.filter(p => {
-      const matchQ = !query || p.descripcion.toLowerCase().includes(query) || (p.codigo && p.codigo.toLowerCase().includes(query));
+      const matchQ = !query || p._buscable.includes(query);
       const matchC = !activeCategoria || p.categoria === activeCategoria;
       const matchO = !activeOrigen || p.origen === activeOrigen;
       return matchQ && matchC && matchO;
@@ -562,10 +584,10 @@ function renderClientArea(){
 }
 
 function renderClientResults(query){
-  query = (query || '').trim().toLowerCase();
+  query = normalizar(query);
   const box = $('clientResults');
   if (!query) { box.innerHTML = ''; return; }
-  const results = clientes.filter(c => c.nombre.toLowerCase().includes(query)).slice(0, 20);
+  const results = clientes.filter(c => c._buscable.includes(query)).slice(0, 20);
   if (!results.length) { box.innerHTML = '<div class="hint" style="padding:14px 0;">Sin resultados — podés cargarlo como cliente nuevo.</div>'; return; }
   box.innerHTML = '';
   results.forEach(c => {
@@ -586,6 +608,7 @@ async function saveNewClient(){
     telefono: $('ncTelefono').value.trim(),
     localidad: $('ncLocalidad').value.trim()
   };
+  cliente._buscable = normalizar(cliente.nombre);
   selectedCliente = cliente;
   clientes.push(cliente);
   renderClientArea();
