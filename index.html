@@ -169,8 +169,19 @@ main{flex:1;overflow-y:auto;padding:4px 16px 100px;}
 
 .cart-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px dashed var(--line);}
 .cart-item .ciname{flex:1;font-size:14px;font-weight:600;}
-.cart-item .ciprice{font-size:12px;color:var(--ink-soft);}
+.cart-item .ciprice{font-size:12px;color:var(--ink-soft);margin-bottom:6px;}
 .cart-item .ciremove{background:none;border:none;color:var(--red);font-size:18px;padding:6px;}
+.ci-qty-stepper{display:flex;align-items:center;gap:10px;}
+.ci-qty-btn{
+  width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:#fff;
+  font-size:18px;font-weight:700;color:var(--navy);line-height:1;
+}
+.ci-qty-btn:active{background:var(--paper);}
+.ci-qty-val{min-width:20px;text-align:center;font-weight:700;font-size:14px;}
+.add-more-btn{
+  width:100%;padding:11px;margin-bottom:12px;border-radius:10px;border:1px dashed var(--navy);
+  background:#fff;color:var(--navy);font-weight:700;font-size:14px;
+}
 
 .cart-total{display:flex;justify-content:space-between;align-items:baseline;padding:14px 0 8px;font-family:'Barlow Condensed';}
 .cart-total .lbl{font-size:14px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.05em;}
@@ -315,6 +326,7 @@ main{flex:1;overflow-y:auto;padding:4px 16px 100px;}
       <div class="sheet-handle"></div>
       <div class="sheet-head"><h2>Pedido</h2><button class="sheet-close" id="cartCloseBtn">✕</button></div>
       <div class="sheet-body">
+        <button id="addMoreBtn" class="add-more-btn">＋ Agregar más productos</button>
         <div id="cartItems"></div>
         <div class="cart-total"><span class="lbl">Total</span><span class="num" id="sheetTotal">$0</span></div>
 
@@ -670,6 +682,13 @@ function openCartSheet(){
 function closeCartSheet(){
   $('cartOverlay').classList.remove('open');
 }
+$('addMoreBtn').onclick = () => {
+  closeCartSheet();
+  const input = $('searchInput');
+  input.value = '';
+  renderProducts('');
+  setTimeout(() => input.focus(), 250);
+};
 
 // Cancela una edición en curso sin guardar nada (vuelve todo a estado
 // normal). Se llama desde un botón explícito, NUNCA al cerrar el carrito
@@ -705,10 +724,27 @@ function renderCartItems(){
     row.innerHTML = `
       <div style="flex:1;">
         <div class="ciname">${item.descripcion}${item.origen ? ' <span class="origen-tag">· ' + item.origen + '</span>' : ''}</div>
-        <div class="ciprice">${qty} × ${money(item.precio)} = ${money(qty*item.precio)}</div>
+        <div class="ciprice">${money(qty*item.precio)} <span style="font-weight:400;color:var(--ink-soft);">(${money(item.precio)} c/u)</span></div>
+        <div class="ci-qty-stepper">
+          <button class="ci-qty-btn" data-act="menos">−</button>
+          <span class="ci-qty-val">${qty}</span>
+          <button class="ci-qty-btn" data-act="mas">+</button>
+        </div>
       </div>
       <button class="ciremove">✕</button>
     `;
+    row.querySelector('[data-act="menos"]').onclick = () => {
+      setQty(item, qty - 1);
+      updateCartBar();
+      renderCartItems();
+      renderProducts($('searchInput').value);
+    };
+    row.querySelector('[data-act="mas"]').onclick = () => {
+      setQty(item, qty + 1);
+      updateCartBar();
+      renderCartItems();
+      renderProducts($('searchInput').value);
+    };
     row.querySelector('.ciremove').onclick = () => {
       delete cart[item.codigo];
       updateCartBar();
