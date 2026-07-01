@@ -132,6 +132,13 @@ main{flex:1;overflow-y:auto;padding:4px 16px 100px;}
 .product .pmeta{font-size:12px;color:var(--ink-soft);}
 .origen-tag{color:var(--amber);font-weight:700;}
 .product .pprice{font-family:'Barlow Condensed';font-weight:700;font-size:18px;color:var(--navy);white-space:nowrap;margin-right:2px;}
+
+.cat-separator{
+  font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-soft);background:var(--paper);
+  padding:10px 4px 4px;margin-top:4px;
+  border-bottom:1px solid var(--line);
+}
 .qty-ctrl{display:flex;align-items:center;gap:0;flex-shrink:0;}
 .qty-ctrl button{
   width:32px;height:32px;border-radius:8px;border:1px solid var(--line);background:var(--paper-2);
@@ -757,14 +764,26 @@ function renderProducts(query){
   }
 
   list.innerHTML = '';
+  let categoriaAnterior = null;
   results.forEach(p => {
+    // Separador de rubro: solo cuando cambia la categoría y no estamos
+    // buscando por texto (en búsqueda libre el separador haría ruido).
+    const catActual = p.categoria || '';
+    if (!query && catActual !== categoriaAnterior) {
+      const sep = document.createElement('div');
+      sep.className = 'cat-separator';
+      sep.textContent = catActual || 'Sin categoría';
+      list.appendChild(sep);
+      categoriaAnterior = catActual;
+    }
+
     const inCart = cart[p.codigo];
     const row = document.createElement('div');
     row.className = 'product';
     row.innerHTML = `
       <div class="pinfo">
         <div class="pname">${p.descripcion}</div>
-        <div class="pmeta">${p.codigo ? 'Cód. ' + p.codigo : ''}${p.categoria ? ' · ' + p.categoria : ''}${p.origen ? ' · <b class="origen-tag">' + p.origen + '</b>' : ''}</div>
+        <div class="pmeta">${p.codigo ? 'Cód. ' + p.codigo : ''}${p.origen ? ' · <b class="origen-tag">' + p.origen + '</b>' : ''}</div>
       </div>
       <div class="pprice">${money(p.precio)}</div>
       <div class="qty-ctrl" data-cod="${p.codigo}"></div>
