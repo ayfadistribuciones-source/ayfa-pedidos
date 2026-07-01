@@ -733,7 +733,10 @@ function renderProducts(query){
     // Sin ningún filtro: limitamos a 40 para que cargue rápido (son miles
     // de productos), pero ordenados A-Z para que tenga sentido cuál ves.
     if (!catalogo.length) { list.innerHTML = '<div class="hint">Cargando catálogo...</div>'; return; }
-    results = [...catalogo].sort((a, b) => a.descripcion.localeCompare(b.descripcion, 'es')).slice(0, 40);
+    results = [...catalogo].sort((a, b) => {
+      const cat = (a.categoria||'').localeCompare(b.categoria||'', 'es');
+      return cat !== 0 ? cat : a.descripcion.localeCompare(b.descripcion, 'es');
+    }).slice(0, 40);
   } else {
     // Con un filtro (rubro, lista o búsqueda) mostramos TODOS los que matchean,
     // ordenados A-Z, sin cortar la lista — así el scroll llega hasta el final.
@@ -742,7 +745,10 @@ function renderProducts(query){
       const matchC = !activeCategoria || p.categoria === activeCategoria;
       const matchO = !activeOrigen || p.origen === activeOrigen;
       return matchQ && matchC && matchO;
-    }).sort((a, b) => a.descripcion.localeCompare(b.descripcion, 'es'));
+    }).sort((a, b) => {
+      const cat = (a.categoria||'').localeCompare(b.categoria||'', 'es');
+      return cat !== 0 ? cat : a.descripcion.localeCompare(b.descripcion, 'es');
+    });
   }
 
   if (!results.length) {
