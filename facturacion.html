@@ -263,6 +263,9 @@ main{max-width:760px;margin:0 auto;padding:16px;padding-bottom:90px;}
   <div id="mapaContainer">
     <div id="mapaEl"></div>
     <div class="mapa-hint">📍 Clientes geocodificados</div>
+    <div class="mapa-hint" style="left:auto;right:10px;font-size:10px;">
+      <a href="https://locationiq.com" target="_blank" style="color:var(--soft);text-decoration:none;">Search by LocationIQ.com</a>
+    </div>
   </div>
 
   <div id="listaBody"><div class="empty"><div class="ico">⏳</div>Cargando...</div></div>
@@ -372,9 +375,14 @@ async function cargarMapa(){
     }
     const bounds=[];
     res.forEach(c=>{
-      const marker=L.marker([c.lat,c.lng]).addTo(mapaInstance);
+      const esAprox=String(c.precision||'').toLowerCase().startsWith('aprox');
+      const marker=esAprox
+        ? L.circleMarker([c.lat,c.lng],{radius:9,color:'#E8A33D',weight:2,fillColor:'#E8A33D',fillOpacity:.35,dashArray:'3,3'})
+        : L.marker([c.lat,c.lng]);
+      marker.addTo(mapaInstance);
       marker.bindPopup(
-        `<b>${c.nombre}</b><br>${c.direccion||''}${c.localidad?' · '+c.localidad:''}${c.telefono?'<br>📞 '+c.telefono:''}`
+        `<b>${c.nombre}</b><br>${c.direccion||''}${c.localidad?' · '+c.localidad:''}${c.telefono?'<br>📞 '+c.telefono:''}`+
+        (esAprox?'<br><span style="color:#9A6A1B;font-size:11px;">📍 Ubicación aproximada (centro de la localidad)</span>':'')
       );
       bounds.push([c.lat,c.lng]);
     });
@@ -647,7 +655,7 @@ $('modalOverlay').addEventListener('click',e=>{if(e.target.id==='modalOverlay')$
 $('refreshBtn').onclick=()=>{
   if(tabActiva==='mapa'){
     mapaCargado=false;
-    if(mapaInstance){mapaInstance.eachLayer(l=>{if(l instanceof L.Marker)mapaInstance.removeLayer(l);});}
+    if(mapaInstance){mapaInstance.eachLayer(l=>{if(l instanceof L.Marker||l instanceof L.CircleMarker)mapaInstance.removeLayer(l);});}
     cargarMapa();
   } else {
     cargar();
