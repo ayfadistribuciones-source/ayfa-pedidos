@@ -120,6 +120,23 @@ main{max-width:760px;margin:0 auto;padding:16px;padding-bottom:90px;}
 .estado-badge.pendiente{background:#FCEFD9;color:#9A6A1B;}
 .estado-badge.facturado{background:#DCEAF7;color:#1C5F8C;}
 
+/* ── FACTURADO TOGGLE ── */
+.fact-toggle{
+  display:flex;align-items:center;gap:9px;margin-top:10px;padding:10px 12px;
+  border-radius:9px;border:1.5px solid var(--line);cursor:pointer;
+  font-size:13px;font-weight:700;color:var(--soft);background:var(--white);
+  transition:background .15s ease,border-color .15s ease,color .15s ease;
+  -webkit-tap-highlight-color:transparent;
+}
+.fact-toggle:active{transform:scale(.99);}
+.fact-toggle.checked{background:#DCEAF7;border-color:#1C5F8C;color:#1C5F8C;}
+.fact-toggle .chk-box{
+  width:19px;height:19px;border-radius:6px;border:2px solid var(--soft);flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;
+  transition:background .15s ease,border-color .15s ease;
+}
+.fact-toggle.checked .chk-box{background:#1C5F8C;border-color:#1C5F8C;}
+
 /* ── DETALLE MODAL ── */
 .modal-overlay{
   position:fixed;inset:0;background:rgba(20,24,34,.55);z-index:50;
@@ -386,6 +403,11 @@ function render(){
       </div>
       <div class="ped-meta">📅 ${fecha} ${hora}</div>
       <div class="ped-items">${(itemsTxt+masItems).replace(/\n/g,'<br>')}</div>
+      ${!isPend?`
+      <div class="fact-toggle ${p.facturado?'checked':''}" id="fact-${p.id}">
+        <span class="chk-box">${p.facturado?'✓':''}</span>
+        <span>${p.facturado?'Facturado en SISEM':'Marcar facturado en SISEM'}</span>
+      </div>`:''}
       <div class="ped-actions">
         ${isPend?`<button class="btn-pdf" id="btn-${p.id}">📄 Generar PDF</button>`:''}
         <button class="btn-ver" onclick="verDetalle('${p.id}')">Ver detalle</button>
@@ -394,9 +416,32 @@ function render(){
     `;
     if(isPend){
       card.querySelector(`#btn-${p.id}`).onclick=()=>generarUno(p.id);
+    } else {
+      card.querySelector(`#fact-${p.id}`).onclick=()=>toggleFacturado(p.id);
     }
     body.appendChild(card);
   });
+}
+
+// ── FACTURADO EN SISEM (checklist manual) ──
+async function toggleFacturado(id){
+  const p=todosPedidos.find(x=>x.id===id);
+  if(!p)return;
+  const nuevoValor=!p.facturado;
+  p.facturado=nuevoValor; // optimista, se revierte si falla
+  render();
+  try{
+    const res=await apiPost({action:'marcar_facturado',id,valor:nuevoValor});
+    if(!res.ok){
+      p.facturado=!nuevoValor;
+      render();
+      showToast('Error: '+(res.error||'no se pudo actualizar'));
+    }
+  }catch(e){
+    p.facturado=!nuevoValor;
+    render();
+    showToast('Sin conexión, probá de nuevo');
+  }
 }
 
 // ── GENERAR PDF ──
