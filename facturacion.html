@@ -31,9 +31,26 @@ header{
 .hdr-btn:hover{background:rgba(255,255,255,.22);}
 
 /* ── TABS ── */
-.tabs{display:flex;background:var(--white);border-bottom:2px solid var(--line);position:sticky;top:58px;z-index:15;}
-.tab{flex:1;padding:13px 6px;text-align:center;font-size:13px;font-weight:700;color:var(--soft);border:none;background:none;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;}
-.tab.active{color:var(--navy);border-bottom-color:var(--amber);}
+.tabs{
+  display:flex;gap:6px;background:var(--white);border-bottom:1px solid var(--line);
+  position:sticky;top:58px;z-index:15;padding:10px 12px;
+}
+.tab{
+  flex:1;padding:10px 6px;text-align:center;font-size:12.5px;font-weight:700;color:var(--soft);
+  border:none;border-radius:10px;background:var(--paper);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  transition:background .15s ease,color .15s ease,box-shadow .15s ease;
+}
+.tab .tab-ico{font-size:14px;line-height:1;}
+.tab:active{transform:scale(.97);}
+.tab.active{background:var(--navy);color:#fff;box-shadow:0 3px 10px rgba(27,42,85,.28);}
+.tab-badge{
+  background:var(--amber);color:var(--navy);font-size:11px;font-weight:800;
+  border-radius:999px;min-width:18px;height:18px;padding:0 5px;
+  display:none;align-items:center;justify-content:center;
+}
+.tab-badge.show{display:inline-flex;}
+.tab.active .tab-badge{background:rgba(255,255,255,.28);color:#fff;}
 
 /* ── MAIN ── */
 main{max-width:760px;margin:0 auto;padding:16px;padding-bottom:90px;}
@@ -149,9 +166,16 @@ main{max-width:760px;margin:0 auto;padding:16px;padding-bottom:90px;}
 </header>
 
 <div class="tabs">
-  <button class="tab active" id="tabPendientes">⏳ Pendientes</button>
-  <button class="tab" id="tabHistorial">✅ Procesados hoy</button>
-  <button class="tab" id="tabTodos">📋 Todos</button>
+  <button class="tab active" id="tabPendientes">
+    <span class="tab-ico">⏳</span><span>Pendientes</span>
+    <span class="tab-badge" id="badgePendientes">0</span>
+  </button>
+  <button class="tab" id="tabHistorial">
+    <span class="tab-ico">✅</span><span>Procesados</span>
+  </button>
+  <button class="tab" id="tabTodos">
+    <span class="tab-ico">📋</span><span>Todos</span>
+  </button>
 </div>
 
 <main>
@@ -278,6 +302,10 @@ function actualizarStats(){
   $('statHoy').textContent=procesadosHoy.length;
   $('statTotal').textContent=money(totalHoy);
   $('statsGrid').style.display='grid';
+
+  const badge=$('badgePendientes');
+  badge.textContent=pendientes.length;
+  badge.classList.toggle('show',pendientes.length>0);
 }
 
 // ── TABS ──
