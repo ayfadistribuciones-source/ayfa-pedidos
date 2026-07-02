@@ -938,26 +938,40 @@ function renderQtyCtrl(ctrl, p){
   const qty = cart[p.codigo] ? cart[p.codigo].qty : 0;
   if (qty === 0) {
     ctrl.innerHTML = `<div class="add-btn">+</div>`;
-    ctrl.querySelector('.add-btn').onclick = (e) => { e.stopPropagation(); setQty(p, 1); renderProducts($('searchInput').value); };
-  } else {
-    ctrl.innerHTML = `<div class="qty-pill"><button class="qs-btn minus">–</button><input class="qnum-input" type="text" inputmode="numeric" pattern="[0-9]*" value="${qty}"><button class="qs-btn plus">+</button></div>`;
-    ctrl.querySelector('.minus').onclick = (e) => { e.stopPropagation(); setQty(p, qty - 1); renderProducts($('searchInput').value); };
-    ctrl.querySelector('.plus').onclick = (e) => { e.stopPropagation(); setQty(p, qty + 1); renderProducts($('searchInput').value); };
-    const input = ctrl.querySelector('.qnum-input');
-    // Tocar el número abre el teclado numérico y selecciona el valor
-    // entero, así escribir "20" lo reemplaza directo — sin tener que
-    // tocar "+" veinte veces para un pedido grande.
-    input.onclick = (e) => { e.stopPropagation(); input.select(); };
-    input.onfocus = () => input.select();
-    const aplicarCantidadTipeada = () => {
-      let nueva = parseInt(input.value, 10);
-      if (isNaN(nueva) || nueva < 0) nueva = 0;
-      setQty(p, nueva);
-      renderProducts($('searchInput').value);
+    // Un solo toque: carga 1 unidad Y ABRE DIRECTO el teclado numérico
+    // (sin re-dibujar toda la lista, para no perder el foco recién puesto),
+    // así el vendedor escribe la cantidad de una sin tocar dos veces.
+    ctrl.querySelector('.add-btn').onclick = (e) => {
+      e.stopPropagation();
+      cart[p.codigo] = { item: p, qty: 1 };
+      updateCartBar();
+      renderStepperConInput(ctrl, p, 1);
+      const input = ctrl.querySelector('.qnum-input');
+      input.focus();
+      input.select();
     };
-    input.onblur = aplicarCantidadTipeada;
-    input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } };
+  } else {
+    renderStepperConInput(ctrl, p, qty);
   }
+}
+
+function renderStepperConInput(ctrl, p, qty){
+  ctrl.innerHTML = `<div class="qty-pill"><button class="qs-btn minus">–</button><input class="qnum-input" type="text" inputmode="numeric" pattern="[0-9]*" value="${qty}"><button class="qs-btn plus">+</button></div>`;
+  ctrl.querySelector('.minus').onclick = (e) => { e.stopPropagation(); setQty(p, qty - 1); renderProducts($('searchInput').value); };
+  ctrl.querySelector('.plus').onclick = (e) => { e.stopPropagation(); setQty(p, qty + 1); renderProducts($('searchInput').value); };
+  const input = ctrl.querySelector('.qnum-input');
+  // Tocar el número selecciona el valor entero y abre el teclado numérico,
+  // así escribir "20" lo reemplaza directo — sin tocar "+" veinte veces.
+  input.onclick = (e) => { e.stopPropagation(); input.select(); };
+  input.onfocus = () => input.select();
+  const aplicarCantidadTipeada = () => {
+    let nueva = parseInt(input.value, 10);
+    if (isNaN(nueva) || nueva < 0) nueva = 0;
+    setQty(p, nueva);
+    renderProducts($('searchInput').value);
+  };
+  input.onblur = aplicarCantidadTipeada;
+  input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } };
 }
 
 function setQty(p, qty){
