@@ -400,6 +400,1784 @@ main{flex:1;overflow-y:auto;padding:4px 16px 100px;}
 
     <div class="searchbar">
       <input id="searchInput" type="text" placeholder="Buscar producto por nombre o código...">
+      <div style="text-align:right;font-size:9px;color:#B4B2A9;margin-top:3px;">build-fotos-v3</div>
+    </div>
+    <div class="chips" id="origenChips"></div>
+    <button class="cat-picker-btn" id="catPickerBtn">📂 Rubro: <span id="catPickerLabel">Todos</span> <span class="cat-picker-arrow">▾</span></button>
+
+    <main id="productList"></main>
+
+    <div class="cartbar hidden" id="cartBar">
+      <div class="ctxt"><span id="cartCount">0</span> art. · <b id="cartTotal">$0</b></div>
+      <button class="cgo" id="cartGoBtn">Ver pedido</button>
+    </div>
+  </div>
+
+  <!-- SELECTOR DE RUBRO (en grilla, para no tener que desplazar en horizontal) -->
+  <div class="sheet-overlay" id="catOverlay">
+    <div class="sheet" id="catSheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head"><h2>Elegir rubro</h2><button class="sheet-close" id="catCloseBtn">✕</button></div>
+      <div class="sheet-body">
+        <div class="cat-grid" id="catGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CART / CHECKOUT SHEET -->
+  <div class="sheet-overlay" id="cartOverlay">
+    <div class="sheet" id="cartSheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head"><h2>Pedido</h2><button class="sheet-close" id="cartCloseBtn">✕</button></div>
+      <div class="sheet-body">
+        <button id="addMoreBtn" class="add-more-btn">＋ Agregar más productos</button>
+        <div id="cartItems"></div>
+        <div class="cart-total"><span class="lbl">Total</span><span class="num" id="sheetTotal">$0</span></div>
+
+        <div class="section-label">Cliente</div>
+        <div id="clientArea"></div>
+
+        <button class="confirm-btn" id="confirmBtn" disabled>Confirmar pedido</button>
+        <button id="cancelEditBtn" style="display:none;width:100%;margin-top:8px;background:none;border:none;color:var(--ink-soft);font-size:13px;text-decoration:underline;padding:8px;">Cancelar edición (descartar cambios)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORIAL DE PEDIDOS DE HOY -->
+  <div class="sheet-overlay" id="historyOverlay">
+    <div class="sheet" id="historySheet" style="max-height:92vh;">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head"><h2>Pedidos de hoy</h2><button class="sheet-close" id="historyCloseBtn">✕</button></div>
+      <div class="sheet-body" id="historyBody">
+        <div class="hint">Cargando...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORIAL POR CLIENTE - lista de clientes -->
+  <div class="sheet-overlay" id="clientesOverlay">
+    <div class="sheet" style="max-height:92vh;">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head"><h2>Clientes</h2><button class="sheet-close" id="clientesCloseBtn">✕</button></div>
+      <div class="sheet-body">
+        <input id="clientesBuscar" type="text" placeholder="Buscar cliente..." style="width:100%;padding:10px;border-radius:9px;border:1px solid var(--line);font-size:14px;box-sizing:border-box;margin-bottom:12px;">
+        <div id="clientesListBody"><div class="hint">Cargando...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORIAL POR CLIENTE - pedidos del cliente seleccionado -->
+  <div class="sheet-overlay" id="clienteHistorialOverlay">
+    <div class="sheet" style="max-height:92vh;">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head"><h2 id="clienteHistorialTitulo">Cliente</h2><button class="sheet-close" id="clienteHistorialCloseBtn">✕</button></div>
+      <div class="sheet-body" id="clienteHistorialBody"><div class="hint">Cargando...</div></div>
+    </div>
+  </div>
+
+  <!-- RESUMEN DE VENTAS / TOP PRODUCTOS -->
+  <div class="sheet-overlay" id="statsOverlay">
+    <div class="sheet" id="statsSheet" style="max-height:92vh;">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head"><h2>Resumen de ventas</h2><button class="sheet-close" id="statsCloseBtn">✕</button></div>
+      <div class="sheet-body">
+        <div class="stats-range" id="statsRange"></div>
+        <div id="statsBody"><div class="hint">Cargando...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETALLE DE UN PEDIDO DEL HISTORIAL -->
+  <div class="sheet-overlay" id="detalleOverlay">
+    <div class="sheet" id="detalleSheet" style="max-height:92vh;">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head"><h2 id="detalleTitulo">Pedido</h2><button class="sheet-close" id="detalleCloseBtn">✕</button></div>
+      <div class="sheet-body" id="detalleBody"></div>
+    </div>
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="success-screen" id="successScreen" style="display:none;">
+    <div class="ticket">
+      <div class="check">✅</div>
+      <div class="tlbl" id="successTitle">Pedido registrado</div>
+      <div class="tid" id="successId">P-00000</div>
+      <div class="tlbl" id="successClient"></div>
+      <div id="successOfflineNote" class="offline-note" style="display:none;">
+        ⏳ SIN ENVIAR AÚN — quedó guardado en este teléfono y se va a mandar solo apenas vuelva la señal. No hace falta que hagas nada más.
+      </div>
+    </div>
+    <button class="ok-btn" id="newOrderBtn">Nuevo pedido</button>
+  </div>
+
+  <!-- VISOR DE FOTO GRANDE (para mostrarle al cliente qué producto es) -->
+  <div class="img-overlay" id="imgOverlay">
+    <button class="img-close" id="imgOverlayClose">✕</button>
+    <img id="imgOverlayPic" src="" alt="">
+    <div class="img-caption" id="imgOverlayCaption"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+// ---------------- STATE ----------------
+let catalogo = [];
+let clientes = [];
+let cart = {}; // codigo -> {item, qty}
+let vendedor = localStorage.getItem('ayfa_vendedor') || '';
+let claveAcceso = localStorage.getItem('ayfa_clave') || '';
+let selectedCliente = null;
+let activeCategoria = '';
+let activeOrigen = '';
+
+const $ = (id) => document.getElementById(id);
+const money = (n) => '$' + Number(n).toLocaleString('es-AR', {maximumFractionDigits:0});
+
+// Saca tildes y pasa a minúsculas, para que la búsqueda no dependa de
+// mayúsculas ni acentos (ej: "Alfajor", "ALFAJÓR", "alfajor" matchean igual).
+function normalizar(s){
+  return String(s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+// Agrega un campo "_buscable" precalculado a cada producto/cliente, para no
+// tener que normalizar el texto en cada tecla que se escribe (más rápido
+// con miles de productos).
+function prepararCatalogoBusqueda(lista){
+  lista.forEach(p => { p._buscable = normalizar(p.descripcion) + ' ' + normalizar(p.codigo); });
+  return lista;
+}
+function prepararClientesBusqueda(lista){
+  lista.forEach(c => { c._buscable = normalizar(c.nombre); });
+  return lista;
+}
+
+function showToast(msg){
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+// ---------------- CLAVE DE ACCESO ----------------
+// Se pide una sola vez (la primera vez que se usa la app en ese teléfono) y
+// queda guardada en localStorage. Si el servidor la rechaza más adelante
+// (porque la cambiaste vos en Apps Script), se vuelve a pedir.
+function pedirClave(mensaje){
+  const v = (prompt(mensaje || 'Ingresá la clave de acceso de AyFa Pedidos:') || '').trim();
+  if (v) {
+    claveAcceso = v;
+    localStorage.setItem('ayfa_clave', v);
+  }
+  return v;
+}
+
+// Como en una camioneta de reparto la señal puede ser mala, no dejamos que
+// un pedido se quede "colgado" esperando para siempre: si no hay respuesta
+// en 10 segundos, lo tratamos como sin conexión y lo encolamos. Mejor
+// fallar rápido y guardar el pedido, que tardar 40 segundos para terminar
+// fallando igual.
+function fetchConTimeout(url, opts, timeoutMs){
+  timeoutMs = timeoutMs || 10000;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  return fetch(url, Object.assign({}, opts, { signal: ctrl.signal })).finally(() => clearTimeout(t));
+}
+
+// Envuelve fetch agregando la clave y reintentando una vez si el servidor
+// avisa que es inválida (clave vieja guardada en el teléfono, por ejemplo).
+// Si no hay conexión o se cuelga, esto TIRA UN ERROR (no devuelve {error}),
+// así el código que llama puede diferenciar "el servidor dijo que no" de
+// "no hay señal" y decidir encolar en el segundo caso.
+async function apiGet(params){
+  const intentar = () => fetchConTimeout(API_URL + '?' + params + '&clave=' + encodeURIComponent(claveAcceso)).then(r=>r.json());
+  let res = await intentar();
+  if (res && res.error === 'CLAVE_INVALIDA') {
+    pedirClave('Clave incorrecta. Probá de nuevo:');
+    res = await intentar();
+  }
+  return res;
+}
+
+async function apiPost(payload){
+  const intentar = () => fetchConTimeout(API_URL, {
+    method: 'POST',
+    body: JSON.stringify(Object.assign({}, payload, { clave: claveAcceso }))
+  }).then(r=>r.json());
+  let res = await intentar();
+  if (res && res.error === 'CLAVE_INVALIDA') {
+    pedirClave('Clave incorrecta. Probá de nuevo:');
+    res = await intentar();
+  }
+  return res;
+}
+
+// ---------------- COLA OFFLINE ----------------
+// Acá vive todo lo necesario para que un pedido NUNCA se pierda por falta
+// de señal: se guarda en el teléfono al toque y se reintenta mandar solo
+// cuando hay conexión, sin que el vendedor tenga que hacer nada extra.
+function cargarCola(){
+  try { return JSON.parse(localStorage.getItem('ayfa_cola') || '[]'); } catch (e) { return []; }
+}
+function guardarCola(cola){
+  localStorage.setItem('ayfa_cola', JSON.stringify(cola));
+  actualizarBadgeCola();
+}
+function nuevoRefLocal(){
+  const n = Number(localStorage.getItem('ayfa_contador_local') || '0') + 1;
+  localStorage.setItem('ayfa_contador_local', String(n));
+  return 'SIN-ENVIAR-' + n;
+}
+function actualizarBadgeCola(){
+  const cola = cargarCola();
+  const badge = $('colaBadge');
+  if (!cola.length) { badge.classList.remove('show'); return; }
+  $('colaBadgeTexto').textContent = cola.length + (cola.length === 1 ? ' pedido sin enviar' : ' pedidos sin enviar');
+  badge.classList.add('show');
+}
+$('colaBadge').onclick = () => sincronizarCola(false);
+
+// Recorre la cola e intenta mandar cada cosa pendiente. Si sigue sin haber
+// señal, no pasa nada raro: el item queda igual en la cola para el próximo
+// intento (automático o manual). Si el servidor responde con un error real
+// (no de conexión, ej. "este pedido ya no está pendiente"), se lo dejamos
+// ver al vendedor para que lo revise, en vez de reintentar para siempre.
+let sincronizando = false;
+async function sincronizarCola(silencioso){
+  if (sincronizando) return;
+  const cola = cargarCola();
+  if (!cola.length) { actualizarBadgeCola(); return; }
+  sincronizando = true;
+  let enviados = 0, conError = 0;
+  const restante = [];
+  for (const item of cola) {
+    try {
+      let res;
+      if (item.accion === 'nuevo_pedido') {
+        res = await apiPost({ action: 'nuevo_pedido', pedido: item.pedido });
+      } else if (item.accion === 'editar_pedido') {
+        res = await apiPost({ action: 'editar_pedido', id: item.idPedido, items: item.items });
+      } else if (item.accion === 'nuevo_cliente') {
+        res = await apiPost({ action: 'nuevo_cliente', cliente: item.cliente });
+      }
+      if (res && res.ok) {
+        enviados++;
+      } else {
+        item.ultimoError = res ? res.error : 'Error desconocido';
+        item.intentos = (item.intentos || 0) + 1;
+        restante.push(item);
+        conError++;
+      }
+    } catch (err) {
+      // Sigue sin conexión: lo dejamos tal cual para el próximo intento.
+      restante.push(item);
+    }
+  }
+  guardarCola(restante);
+  sincronizando = false;
+  if (!silencioso || enviados) {
+    if (enviados) showToast('✅ ' + enviados + ' pedido(s) sin enviar se mandaron correctamente');
+    if (conError) showToast('⚠️ Hay ' + conError + ' pendiente(s) con error del servidor — revisalos en "Pedidos de hoy"');
+  }
+  if (typeof pedidosHoy !== 'undefined' && $('historyOverlay').classList.contains('open')) {
+    cargarHistorial();
+  }
+}
+
+// ---------------- LOGIN ----------------
+function renderLogin(){
+  const list = $('vendorList');
+  list.innerHTML = '';
+  VENDEDORES.forEach(v => {
+    const b = document.createElement('button');
+    b.className = 'vendor-btn';
+    b.innerHTML = `<span>${v}</span><span class="arrow">→</span>`;
+    b.onclick = () => loginAs(v);
+    list.appendChild(b);
+  });
+}
+$('vendorOtherBtn').onclick = () => {
+  const v = $('vendorOther').value.trim();
+  if (v) loginAs(v);
+};
+
+function loginAs(name){
+  vendedor = name;
+  localStorage.setItem('ayfa_vendedor', name);
+  startApp();
+}
+$('logoutBtn').onclick = () => {
+  vendedor = '';
+  localStorage.removeItem('ayfa_vendedor');
+  $('mainApp').style.display = 'none';
+  $('login').style.display = 'flex';
+};
+
+// ---------------- DATA LOADING ----------------
+async function loadData(){
+  try {
+    const cachedCat = localStorage.getItem('ayfa_catalogo');
+    const cachedCli = localStorage.getItem('ayfa_clientes');
+    if (cachedCat) catalogo = prepararCatalogoBusqueda(JSON.parse(cachedCat));
+    if (cachedCli) clientes = prepararClientesBusqueda(JSON.parse(cachedCli));
+    renderOrigenChips();
+    renderChips();
+    renderProducts('');
+
+    const [r1, r2] = await Promise.all([
+      apiGet('action=catalogo'),
+      apiGet('action=clientes')
+    ]);
+    if (Array.isArray(r1)) {
+      catalogo = prepararCatalogoBusqueda(r1);
+      localStorage.setItem('ayfa_catalogo', JSON.stringify(catalogo));
+    }
+    if (Array.isArray(r2)) {
+      clientes = prepararClientesBusqueda(r2);
+      localStorage.setItem('ayfa_clientes', JSON.stringify(clientes));
+    }
+    renderOrigenChips();
+    renderChips();
+    renderProducts($('searchInput').value);
+  } catch(err){
+    if (!catalogo.length) {
+      $('productList').innerHTML = '<div class="hint">No se pudo cargar el catálogo. Revisá tu conexión y volvé a intentar.</div>';
+    } else {
+      showToast('Usando catálogo guardado (sin conexión)');
+    }
+  }
+}
+
+// ---------------- PRODUCTS ----------------
+function renderOrigenChips(){
+  const origenes = Array.from(new Set(catalogo.map(p=>p.origen).filter(Boolean)));
+  const wrap = $('origenChips');
+  wrap.innerHTML = '';
+  if (origenes.length < 2) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'flex';
+  const all = document.createElement('div');
+  all.className = 'chip' + (activeOrigen === '' ? ' active' : '');
+  all.textContent = 'Todas las listas';
+  all.onclick = () => { activeOrigen = ''; renderOrigenChips(); renderProducts($('searchInput').value); };
+  wrap.appendChild(all);
+  origenes.forEach(o => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (activeOrigen === o ? ' active' : '');
+    chip.textContent = o;
+    chip.onclick = () => { activeOrigen = o; renderOrigenChips(); renderProducts($('searchInput').value); };
+    wrap.appendChild(chip);
+  });
+}
+
+function renderChips(){
+  const grid = $('catGrid');
+  grid.innerHTML = '';
+
+  const all = document.createElement('div');
+  all.className = 'chip all' + (activeCategoria === '' && activeOrigen === '' ? ' active' : '');
+  all.textContent = 'Todos los rubros (ambas listas)';
+  all.onclick = () => { activeCategoria = ''; activeOrigen = ''; cerrarSelectorRubro(); };
+  grid.appendChild(all);
+
+  const origenes = Array.from(new Set(catalogo.map(p=>p.origen).filter(Boolean))).sort();
+  const cols = document.createElement('div');
+  cols.className = 'cat-cols';
+  cols.style.gridTemplateColumns = `repeat(${origenes.length || 1}, 1fr)`;
+
+  origenes.forEach(origen => {
+    const col = document.createElement('div');
+    col.className = 'cat-col';
+    const titulo = document.createElement('div');
+    titulo.className = 'cat-col-title';
+    titulo.textContent = origen;
+    col.appendChild(titulo);
+
+    const cats = Array.from(new Set(
+      catalogo.filter(p => p.origen === origen).map(p => p.categoria).filter(Boolean)
+    )).sort();
+
+    cats.forEach(c => {
+      const chip = document.createElement('div');
+      const activo = activeCategoria === c && activeOrigen === origen;
+      chip.className = 'chip' + (activo ? ' active' : '');
+      chip.textContent = c;
+      chip.onclick = () => { activeCategoria = c; activeOrigen = origen; cerrarSelectorRubro(); };
+      col.appendChild(chip);
+    });
+
+    cols.appendChild(col);
+  });
+
+  grid.appendChild(cols);
+  $('catPickerLabel').textContent = activeCategoria || 'Todos';
+}
+
+function cerrarSelectorRubro(){
+  renderOrigenChips();
+  renderChips();
+  $('catOverlay').classList.remove('open');
+  renderProducts($('searchInput').value);
+}
+$('catPickerBtn').onclick = () => { renderChips(); $('catOverlay').classList.add('open'); };
+$('catCloseBtn').onclick = () => $('catOverlay').classList.remove('open');
+$('catOverlay').addEventListener('click', (e) => { if (e.target.id === 'catOverlay') $('catOverlay').classList.remove('open'); });
+
+function renderProducts(query){
+  const list = $('productList');
+  query = normalizar(query);
+  let results;
+  if (!query && !activeCategoria && !activeOrigen) {
+    // Sin ningún filtro: limitamos a 40 para que cargue rápido (son miles
+    // de productos), pero ordenados A-Z para que tenga sentido cuál ves.
+    if (!catalogo.length) { list.innerHTML = '<div class="hint">Cargando catálogo...</div>'; return; }
+    results = [...catalogo].sort((a, b) => {
+      const cat = (a.categoria||'').localeCompare(b.categoria||'', 'es');
+      return cat !== 0 ? cat : a.descripcion.localeCompare(b.descripcion, 'es');
+    }).slice(0, 40);
+  } else {
+    // Con un filtro (rubro, lista o búsqueda) mostramos TODOS los que matchean,
+    // ordenados A-Z, sin cortar la lista — así el scroll llega hasta el final.
+    results = catalogo.filter(p => {
+      const matchQ = !query || p._buscable.includes(query);
+      const matchC = !activeCategoria || p.categoria === activeCategoria;
+      const matchO = !activeOrigen || p.origen === activeOrigen;
+      return matchQ && matchC && matchO;
+    }).sort((a, b) => {
+      const cat = (a.categoria||'').localeCompare(b.categoria||'', 'es');
+      return cat !== 0 ? cat : a.descripcion.localeCompare(b.descripcion, 'es');
+    });
+  }
+
+  if (!results.length) {
+    list.innerHTML = '<div class="hint">No se encontraron productos.</div>';
+    return;
+  }
+
+  list.innerHTML = '';
+  let categoriaAnterior = null;
+  results.forEach(p => {
+    // Separador de rubro: solo cuando cambia la categoría y no estamos
+    // buscando por texto (en búsqueda libre el separador haría ruido).
+    const catActual = p.categoria || '';
+    if (!query && catActual !== categoriaAnterior) {
+      const sep = document.createElement('div');
+      sep.className = 'cat-separator';
+      sep.textContent = catActual || 'Sin categoría';
+      list.appendChild(sep);
+      categoriaAnterior = catActual;
+    }
+
+    const inCart = cart[p.codigo];
+    const row = document.createElement('div');
+    row.className = 'product';
+    row.innerHTML = `
+      <div class="pinfo">
+        <div class="pname">${p.descripcion}</div>
+        <div class="pmeta">${p.codigo ? 'Cód. ' + p.codigo : ''}${p.origen ? ' · <b class="origen-tag">' + p.origen + '</b>' : ''}</div>
+        <div class="pprice">${money(p.precio)}</div>
+      </div>
+      <div class="pimg-wrap">
+        ${p.imagen ? `<img class="pimg" src="${p.imagen}" loading="lazy" alt="" onerror="imgFallback(this)">` : `<div class="pimg-placeholder">📦</div>`}
+        <div class="qty-ctrl" data-cod="${p.codigo}"></div>
+      </div>
+    `;
+    const ctrl = row.querySelector('.qty-ctrl');
+    renderQtyCtrl(ctrl, p);
+    const imgEl = row.querySelector('.pimg');
+    if (imgEl) imgEl.onclick = (e) => { e.stopPropagation(); verFotoGrande(p); };
+    list.appendChild(row);
+  });
+
+  if (!query && !activeCategoria && !activeOrigen && catalogo.length > 40) {
+    const hint = document.createElement('div');
+    hint.className = 'hint';
+    hint.textContent = 'Mostrando los primeros 40 — usá el buscador para encontrar más productos.';
+    list.appendChild(hint);
+  }
+}
+
+// Si la foto de un producto no carga (link roto, archivo borrado de Drive,
+// etc.), la reemplazamos por el ícono genérico en vez de dejar el hueco del
+// "broken image" del navegador.
+function imgFallback(imgEl){
+  const div = document.createElement('div');
+  div.className = 'pimg-placeholder';
+  div.textContent = '📦';
+  imgEl.replaceWith(div);
+}
+
+// Abre la foto del producto a pantalla completa — pensado para que Omar le
+// muestre al cliente exactamente qué producto le está ofreciendo. Pide una
+// versión más grande de la miniatura (Drive genera la que le pidas, no hay
+// que guardar una copia aparte).
+function verFotoGrande(p){
+  if (!p.imagen) return;
+  const grande = p.imagen.replace('sz=w200', 'sz=w800');
+  $('imgOverlayPic').src = grande;
+  $('imgOverlayCaption').textContent = p.descripcion;
+  $('imgOverlay').classList.add('open');
+}
+$('imgOverlayClose').onclick = () => $('imgOverlay').classList.remove('open');
+$('imgOverlay').addEventListener('click', (e) => { if (e.target.id === 'imgOverlay') $('imgOverlay').classList.remove('open'); });
+
+function renderQtyCtrl(ctrl, p){
+  const qty = cart[p.codigo] ? cart[p.codigo].qty : 0;
+  if (qty === 0) {
+    ctrl.innerHTML = `<div class="add-btn">+</div>`;
+    ctrl.querySelector('.add-btn').onclick = (e) => { e.stopPropagation(); setQty(p, 1); renderProducts($('searchInput').value); };
+  } else {
+    ctrl.innerHTML = `<div class="qty-pill"><button class="qs-btn minus">–</button><span class="qnum">${qty}</span><button class="qs-btn plus">+</button></div>`;
+    ctrl.querySelector('.minus').onclick = (e) => { e.stopPropagation(); setQty(p, qty - 1); renderProducts($('searchInput').value); };
+    ctrl.querySelector('.plus').onclick = (e) => { e.stopPropagation(); setQty(p, qty + 1); renderProducts($('searchInput').value); };
+  }
+}
+
+function setQty(p, qty){
+  if (qty <= 0) { delete cart[p.codigo]; }
+  else { cart[p.codigo] = { item: p, qty }; }
+  updateCartBar();
+}
+
+function updateCartBar(){
+  const items = Object.values(cart);
+  const count = items.reduce((s,i)=>s+i.qty,0);
+  const total = items.reduce((s,i)=>s+i.qty*i.item.precio,0);
+  $('cartCount').textContent = count;
+  $('cartTotal').textContent = money(total);
+  $('cartBar').classList.toggle('hidden', count === 0);
+}
+
+let searchTimer;
+$('searchInput').addEventListener('input', (e) => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => renderProducts(e.target.value), 120);
+});
+
+// ---------------- CART SHEET ----------------
+$('cartGoBtn').onclick = openCartSheet;
+$('cartCloseBtn').onclick = closeCartSheet;
+$('cartOverlay').addEventListener('click', (e) => { if (e.target.id === 'cartOverlay') closeCartSheet(); });
+
+function openCartSheet(){
+  renderCartItems();
+  renderClientArea();
+  $('cartOverlay').classList.add('open');
+}
+function closeCartSheet(){
+  $('cartOverlay').classList.remove('open');
+}
+$('addMoreBtn').onclick = () => {
+  closeCartSheet();
+  const input = $('searchInput');
+  input.value = '';
+  renderProducts('');
+  setTimeout(() => input.focus(), 250);
+};
+
+// Cancela una edición en curso sin guardar nada (vuelve todo a estado
+// normal). Se llama desde un botón explícito, NUNCA al cerrar el carrito
+// para ir a buscar más productos (eso debe conservar lo que se viene
+// armando, igual que en un pedido nuevo).
+function cancelarEdicionPedido(){
+  editingPedidoId = null;
+  editingColaRef = null;
+  cart = {};
+  selectedCliente = null;
+  $('confirmBtn').textContent = 'Confirmar pedido';
+  $('cancelEditBtn').style.display = 'none';
+  updateCartBar();
+  closeCartSheet();
+  showToast('Edición cancelada, no se guardó ningún cambio');
+}
+$('cancelEditBtn').onclick = cancelarEdicionPedido;
+
+function renderCartItems(){
+  const wrap = $('cartItems');
+  const items = Object.values(cart);
+  if (!items.length) {
+    wrap.innerHTML = '<div class="hint">Todavía no agregaste productos.</div>';
+    $('sheetTotal').textContent = '$0';
+    updateConfirmState();
+    return;
+  }
+  wrap.innerHTML = '';
+  let total = 0;
+  items.forEach(({item, qty}) => {
+    total += qty * item.precio;
+    const row = document.createElement('div');
+    row.className = 'cart-item';
+    row.innerHTML = `
+      <div style="flex:1;">
+        <div class="ciname">${item.descripcion}${item.origen ? ' <span class="origen-tag">· ' + item.origen + '</span>' : ''}</div>
+        <div class="ciprice">${money(qty*item.precio)} <span style="font-weight:400;color:var(--ink-soft);">(${money(item.precio)} c/u)</span></div>
+        <div class="ci-qty-stepper">
+          <button class="ci-qty-btn" data-act="menos">−</button>
+          <span class="ci-qty-val">${qty}</span>
+          <button class="ci-qty-btn" data-act="mas">+</button>
+        </div>
+      </div>
+      <button class="ciremove">✕</button>
+    `;
+    row.querySelector('[data-act="menos"]').onclick = () => {
+      setQty(item, qty - 1);
+      updateCartBar();
+      renderCartItems();
+      renderProducts($('searchInput').value);
+    };
+    row.querySelector('[data-act="mas"]').onclick = () => {
+      setQty(item, qty + 1);
+      updateCartBar();
+      renderCartItems();
+      renderProducts($('searchInput').value);
+    };
+    row.querySelector('.ciremove').onclick = () => {
+      delete cart[item.codigo];
+      updateCartBar();
+      renderCartItems();
+      renderProducts($('searchInput').value);
+    };
+    wrap.appendChild(row);
+  });
+  $('sheetTotal').textContent = money(total);
+  updateConfirmState();
+}
+
+// ---------------- CLIENT PICKER ----------------
+function renderClientArea(){
+  const area = $('clientArea');
+  if (selectedCliente) {
+    area.innerHTML = `
+      <div class="client-selected">
+        <div>
+          <b>${selectedCliente.nombre}</b>
+          <span>${[selectedCliente.direccion, selectedCliente.localidad].filter(Boolean).join(' · ') || 'Sin dirección registrada'}</span>
+        </div>
+        <button id="changeClientBtn">Cambiar</button>
+      </div>
+    `;
+    $('changeClientBtn').onclick = () => { selectedCliente = null; renderClientArea(); updateConfirmState(); };
+    updateConfirmState();
+    return;
+  }
+
+  area.innerHTML = `
+    <div class="client-search">
+      <input id="clientSearchInput" type="text" placeholder="Buscar cliente...">
+      <div class="client-list" id="clientResults"></div>
+      <button class="link-btn" id="newClientToggle">+ Cargar cliente nuevo</button>
+      <div class="new-client-form" id="newClientForm">
+        <input id="ncNombre" placeholder="Nombre / Razón social *">
+        <input id="ncDireccion" placeholder="Dirección">
+        <input id="ncTelefono" placeholder="Teléfono">
+        <input id="ncLocalidad" placeholder="Localidad">
+        <button class="link-btn" id="ncSave">Guardar y usar este cliente</button>
+      </div>
+    </div>
+  `;
+
+  const input = $('clientSearchInput');
+  input.addEventListener('input', () => renderClientResults(input.value));
+  $('newClientToggle').onclick = () => $('newClientForm').classList.toggle('open');
+  $('ncSave').onclick = saveNewClient;
+  updateConfirmState();
+}
+
+function renderClientResults(query){
+  query = normalizar(query);
+  const box = $('clientResults');
+  if (!query) { box.innerHTML = ''; return; }
+  const results = clientes.filter(c => c._buscable.includes(query)).slice(0, 20);
+  if (!results.length) { box.innerHTML = '<div class="hint" style="padding:14px 0;">Sin resultados — podés cargarlo como cliente nuevo.</div>'; return; }
+  box.innerHTML = '';
+  results.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'client-row';
+    row.innerHTML = `<b>${c.nombre}</b><span>${[c.direccion, c.localidad].filter(Boolean).join(' · ')}</span>`;
+    row.onclick = () => { selectedCliente = c; renderClientArea(); };
+    box.appendChild(row);
+  });
+}
+
+async function saveNewClient(){
+  const nombre = $('ncNombre').value.trim();
+  if (!nombre) { showToast('Falta el nombre del cliente'); return; }
+  const cliente = {
+    nombre,
+    direccion: $('ncDireccion').value.trim(),
+    telefono: $('ncTelefono').value.trim(),
+    localidad: $('ncLocalidad').value.trim()
+  };
+  cliente._buscable = normalizar(cliente.nombre);
+  selectedCliente = cliente;
+  clientes.push(cliente);
+  renderClientArea();
+  apiPost({ action: 'nuevo_cliente', cliente }).catch(() => {
+    // Sin conexión: el cliente queda usable igual en este pedido (ya está
+    // en `clientes` en memoria), y lo encolamos para que se guarde en la
+    // planilla apenas vuelva la señal.
+    const cola = cargarCola();
+    cola.push({ accion: 'nuevo_cliente', cliente, creado: Date.now(), intentos: 0 });
+    guardarCola(cola);
+  });
+}
+
+function updateConfirmState(){
+  const hasItems = Object.keys(cart).length > 0;
+  $('confirmBtn').disabled = !(hasItems && selectedCliente);
+}
+
+// ---------------- CONFIRM ORDER ----------------
+$('confirmBtn').onclick = async () => {
+  const items = Object.values(cart).map(({item, qty}) => ({
+    codigo: item.codigo, descripcion: item.descripcion, precio: item.precio, cantidad: qty, origen: item.origen || ''
+  }));
+  const total = items.reduce((s,i)=>s+i.cantidad*i.precio,0);
+
+  $('confirmBtn').disabled = true;
+
+  if (editingColaRef) {
+    // ---- Edición LOCAL: el pedido todavía está sin enviar, así que esto
+    // no toca el servidor para nada, se guarda directo en el teléfono. ----
+    const cola = cargarCola();
+    const item = cola.find(it => it.refLocal === editingColaRef);
+    if (item) {
+      item.pedido.items = items;
+      item.pedido.total = total;
+      guardarCola(cola);
+      showToast('Pedido ' + editingColaRef + ' actualizado (sigue sin enviar)');
+    } else {
+      showToast('No se encontró el pedido en la cola — puede que ya se haya enviado');
+    }
+    cart = {}; selectedCliente = null;
+    editingColaRef = null;
+    updateCartBar();
+    closeCartSheet();
+    $('confirmBtn').textContent = 'Confirmar pedido';
+    $('cancelEditBtn').style.display = 'none';
+    if ($('historyOverlay').classList.contains('open')) cargarHistorial();
+    updateConfirmState();
+    return;
+  }
+
+  if (editingPedidoId) {
+    // ---- Modo edición: actualiza un pedido ya cargado (solo si sigue Pendiente) ----
+    $('confirmBtn').textContent = 'Guardando...';
+    try {
+      const res = await apiPost({ action: 'editar_pedido', id: editingPedidoId, items });
+      if (res.ok) {
+        showToast('Pedido ' + editingPedidoId + ' actualizado');
+        cart = {}; selectedCliente = null;
+        const idEditado = editingPedidoId;
+        editingPedidoId = null;
+        updateCartBar();
+        closeCartSheet();
+        $('confirmBtn').textContent = 'Confirmar pedido';
+        $('cancelEditBtn').style.display = 'none';
+        await cargarHistorial(); // refresca la lista para que se vea el total nuevo
+      } else {
+        showToast('No se pudo guardar: ' + (res.error || ''));
+        $('confirmBtn').textContent = 'Guardar cambios del pedido ' + editingPedidoId;
+      }
+    } catch (err) {
+      // Sin conexión: encolamos la edición para que se aplique sola cuando
+      // vuelva la señal. Ojo: si para entonces vos ya cambiaste el estado
+      // del pedido en la planilla, el servidor la va a rechazar al
+      // sincronizar y vas a verlo marcado con error en "Pedidos de hoy".
+      const cola = cargarCola();
+      cola.push({ accion: 'editar_pedido', idPedido: editingPedidoId, items, creado: Date.now(), intentos: 0 });
+      guardarCola(cola);
+      showToast('Sin conexión: el cambio del pedido ' + editingPedidoId + ' se guardó y se va a aplicar solo apenas vuelva la señal');
+      cart = {}; selectedCliente = null;
+      editingPedidoId = null;
+      updateCartBar();
+      closeCartSheet();
+      $('confirmBtn').textContent = 'Confirmar pedido';
+      $('cancelEditBtn').style.display = 'none';
+    }
+    updateConfirmState();
+    return;
+  }
+
+  // ---- Modo normal: pedido nuevo ----
+  const pedido = {
+    vendedor,
+    cliente: selectedCliente.nombre,
+    telefono: selectedCliente.telefono || '',
+    direccion: selectedCliente.direccion || '',
+    items, total
+  };
+  $('confirmBtn').textContent = 'Enviando...';
+  try {
+    const res = await apiPost({ action: 'nuevo_pedido', pedido });
+    if (res.ok) {
+      $('successTitle').textContent = 'Pedido registrado';
+      $('successId').textContent = res.id;
+      $('successClient').textContent = 'Cliente: ' + selectedCliente.nombre;
+      $('successOfflineNote').style.display = 'none';
+      cart = {}; selectedCliente = null;
+      updateCartBar();
+      closeCartSheet();
+      $('mainApp').style.display = 'none';
+      $('successScreen').style.display = 'flex';
+    } else {
+      showToast('Error al guardar: ' + (res.error || ''));
+    }
+  } catch(err){
+    // Sin conexión (o se colgó): NO perdemos el pedido. Lo guardamos en el
+    // teléfono y se manda solo apenas vuelva la señal — el vendedor sigue
+    // atendiendo clientes sin esperar nada.
+    const refLocal = nuevoRefLocal();
+    const cola = cargarCola();
+    cola.push({ refLocal, accion: 'nuevo_pedido', pedido, creado: Date.now(), intentos: 0 });
+    guardarCola(cola);
+    $('successTitle').textContent = 'Pedido guardado en el teléfono';
+    $('successId').textContent = refLocal;
+    $('successClient').textContent = 'Cliente: ' + selectedCliente.nombre;
+    $('successOfflineNote').style.display = 'block';
+    cart = {}; selectedCliente = null;
+    updateCartBar();
+    closeCartSheet();
+    $('mainApp').style.display = 'none';
+    $('successScreen').style.display = 'flex';
+  }
+  $('confirmBtn').textContent = 'Confirmar pedido';
+  updateConfirmState();
+};
+
+$('newOrderBtn').onclick = () => {
+  $('successScreen').style.display = 'none';
+  $('mainApp').style.display = 'flex';
+  renderProducts('');
+};
+
+// ---------------- HISTORIAL DE PEDIDOS DE HOY ----------------
+let pedidosHoy = [];
+let pedidoActivo = null;
+let editingPedidoId = null; // si no es null, el carrito está editando un pedido existente en vez de crear uno nuevo
+let editingColaRef = null; // si no es null, está editando un pedido que todavía está SIN ENVIAR (edición local, sin red)
+
+$('historyBtn').onclick = openHistorial;
+$('historyCloseBtn').onclick = () => $('historyOverlay').classList.remove('open');
+$('historyOverlay').addEventListener('click', (e) => { if (e.target.id === 'historyOverlay') $('historyOverlay').classList.remove('open'); });
+$('detalleCloseBtn').onclick = () => $('detalleOverlay').classList.remove('open');
+$('detalleOverlay').addEventListener('click', (e) => { if (e.target.id === 'detalleOverlay') $('detalleOverlay').classList.remove('open'); });
+
+// ---------------- HISTORIAL POR CLIENTE ----------------
+$('clientesBtn').onclick = openClientesHistorial;
+$('clientesCloseBtn').onclick = () => $('clientesOverlay').classList.remove('open');
+$('clientesOverlay').addEventListener('click', (e) => { if (e.target.id === 'clientesOverlay') $('clientesOverlay').classList.remove('open'); });
+$('clienteHistorialCloseBtn').onclick = () => $('clienteHistorialOverlay').classList.remove('open');
+$('clienteHistorialOverlay').addEventListener('click', (e) => { if (e.target.id === 'clienteHistorialOverlay') $('clienteHistorialOverlay').classList.remove('open'); });
+
+let todosLosPedidos = [];
+let clientesBuscarTimeout = null;
+
+async function openClientesHistorial(){
+  $('clientesOverlay').classList.add('open');
+  $('clientesBuscar').value = '';
+  $('clientesListBody').innerHTML = '<div class="hint">Cargando...</div>';
+  try {
+    const res = await apiGet('action=pedidos');
+    if (!Array.isArray(res)) { $('clientesListBody').innerHTML = '<div class="hint">No se pudo cargar.</div>'; return; }
+    // Solo muestra los pedidos del vendedor actual (privacidad entre vendedores)
+    todosLosPedidos = res.filter(p => String(p.vendedor||'').toLowerCase() === String(vendedor||'').toLowerCase());
+    renderClientesList('');
+  } catch(err) {
+    $('clientesListBody').innerHTML = '<div class="hint">Sin conexión.</div>';
+  }
+}
+
+function renderClientesList(filtro){
+  const body = $('clientesListBody');
+  const norm = normalizar(filtro);
+  // Agrupa pedidos por cliente y filtra por búsqueda
+  const porCliente = {};
+  todosLosPedidos.forEach(p => {
+    const nombre = String(p.cliente || '').trim();
+    if (!nombre) return;
+    if (norm && !normalizar(nombre).includes(norm)) return;
+    if (!porCliente[nombre]) porCliente[nombre] = { pedidos: [], total: 0 };
+    porCliente[nombre].pedidos.push(p);
+    porCliente[nombre].total += Number(p.total || 0);
+  });
+  const clientes = Object.keys(porCliente).sort((a, b) => a.localeCompare(b, 'es'));
+  if (!clientes.length) {
+    body.innerHTML = '<div class="hint">No hay pedidos ' + (norm ? 'para ese cliente' : 'registrados') + '.</div>';
+    return;
+  }
+  body.innerHTML = '';
+  clientes.forEach(nombre => {
+    const data = porCliente[nombre];
+    const row = document.createElement('div');
+    row.className = 'cli-row';
+    row.innerHTML = `
+      <div>
+        <div class="cli-nombre">${nombre}</div>
+        <div class="cli-meta">${data.pedidos.length} pedido(s) · ${money(data.total)} total</div>
+      </div>
+      <span class="cli-arrow">›</span>
+    `;
+    row.onclick = () => abrirHistorialCliente(nombre, data.pedidos);
+    body.appendChild(row);
+  });
+}
+
+$('clientesBuscar').addEventListener('input', (e) => {
+  clearTimeout(clientesBuscarTimeout);
+  clientesBuscarTimeout = setTimeout(() => renderClientesList(e.target.value), 200);
+});
+
+function abrirHistorialCliente(nombre, pedidos){
+  $('clienteHistorialTitulo').textContent = nombre;
+  const body = $('clienteHistorialBody');
+  // Ordena de más reciente a más viejo
+  const ordenados = [...pedidos].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  const totalAcum = ordenados.reduce((s, p) => s + Number(p.total || 0), 0);
+  let html = `
+    <div class="cli-resumen">
+      <div><div class="snum">${ordenados.length}</div><div class="slbl">Pedidos</div></div>
+      <div style="text-align:right;"><div class="snum">${money(totalAcum)}</div><div class="slbl">Total acumulado</div></div>
+    </div>
+  `;
+  ordenados.forEach(p => {
+    const fecha = new Date(p.fecha).toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', year:'2-digit' });
+    const hora = new Date(p.fecha).toLocaleTimeString('es-AR', { hour:'2-digit', minute:'2-digit' });
+    const itemsTxt = (p.items||[]).map(it => `${it.cantidad} × ${it.descripcion}`).join(' · ');
+    html += `
+      <div class="cli-ped-row">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;">
+          <span class="cli-ped-id">${p.id}</span>
+          <span class="cli-ped-meta">${fecha} ${hora}</span>
+        </div>
+        <div class="cli-ped-items">${itemsTxt}</div>
+        <div class="cli-ped-total">${money(p.total)}</div>
+      </div>
+    `;
+  });
+  body.innerHTML = html;
+  $('clienteHistorialOverlay').classList.add('open');
+}
+
+function openHistorial(){
+  $('historyOverlay').classList.add('open');
+  cargarHistorial();
+}
+
+// ---------------- RESUMEN DE VENTAS / TOP PRODUCTOS ----------------
+let statsRangeActivo = 'hoy';
+let statsDesde = '';
+let statsHasta = '';
+const STATS_RANGOS = [
+  { id: 'hoy', label: 'Hoy' },
+  { id: 'semana', label: '7 días' },
+  { id: 'mes', label: '30 días' },
+  { id: 'todo', label: 'Todo' },
+  { id: 'personalizado', label: '📅 Elegir fechas' }
+];
+
+$('statsBtn').onclick = openStats;
+$('statsCloseBtn').onclick = () => $('statsOverlay').classList.remove('open');
+$('statsOverlay').addEventListener('click', (e) => { if (e.target.id === 'statsOverlay') $('statsOverlay').classList.remove('open'); });
+
+function openStats(){
+  renderStatsRangeChips();
+  $('statsOverlay').classList.add('open');
+  cargarStats();
+}
+
+function renderStatsRangeChips(){
+  const wrap = $('statsRange');
+  wrap.innerHTML = '';
+  const fila = document.createElement('div');
+  fila.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;';
+  STATS_RANGOS.forEach(r => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (statsRangeActivo === r.id ? ' active' : '');
+    chip.textContent = r.label;
+    chip.onclick = () => { statsRangeActivo = r.id; renderStatsRangeChips(); if (r.id !== 'personalizado') cargarStats(); };
+    fila.appendChild(chip);
+  });
+  wrap.appendChild(fila);
+
+  if (statsRangeActivo === 'personalizado') {
+    const box = document.createElement('div');
+    box.style.cssText = 'display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap;';
+    box.innerHTML = `
+      <input type="date" id="statsDesdeInput" value="${statsDesde}" style="flex:1;min-width:130px;padding:8px;border-radius:8px;border:1px solid var(--line);">
+      <span style="color:var(--ink-soft);font-size:13px;">hasta</span>
+      <input type="date" id="statsHastaInput" value="${statsHasta}" style="flex:1;min-width:130px;padding:8px;border-radius:8px;border:1px solid var(--line);">
+      <button id="statsAplicarBtn" style="padding:9px 14px;border-radius:8px;border:none;background:var(--navy);color:#fff;font-weight:700;font-size:13px;">Aplicar</button>
+    `;
+    wrap.appendChild(box);
+    $('statsAplicarBtn').onclick = () => {
+      statsDesde = $('statsDesdeInput').value;
+      statsHasta = $('statsHastaInput').value;
+      if (!statsDesde || !statsHasta) { showToast('Elegí las dos fechas'); return; }
+      cargarStats();
+    };
+  }
+}
+
+function pedidoDentroDeRango(p, rango){
+  if (rango === 'todo') return true;
+  const fecha = new Date(p.fecha);
+  const ahora = new Date();
+  if (rango === 'hoy') return fecha.toDateString() === ahora.toDateString();
+  if (rango === 'personalizado') {
+    if (!statsDesde || !statsHasta) return false;
+    const desde = new Date(statsDesde + 'T00:00:00');
+    const hasta = new Date(statsHasta + 'T23:59:59');
+    return fecha >= desde && fecha <= hasta;
+  }
+  const dias = rango === 'semana' ? 7 : 30;
+  const limite = new Date(ahora);
+  limite.setDate(limite.getDate() - dias + 1);
+  limite.setHours(0, 0, 0, 0);
+  return fecha >= limite;
+}
+
+async function cargarStats(){
+  const body = $('statsBody');
+
+  if (statsRangeActivo === 'personalizado' && (!statsDesde || !statsHasta)) {
+    body.innerHTML = '<div class="hint">Elegí una fecha "desde" y "hasta" arriba, y tocá Aplicar.</div>';
+    return;
+  }
+
+  body.innerHTML = '<div class="hint">Cargando...</div>';
+  let pedidos;
+  try {
+    const res = await apiGet('action=pedidos');
+    if (!Array.isArray(res)) { body.innerHTML = '<div class="hint">No se pudo cargar.</div>'; return; }
+    pedidos = res;
+  } catch (err) {
+    body.innerHTML = '<div class="hint">Sin conexión — el resumen necesita bajar los pedidos del servidor. Probá de nuevo con señal.</div>';
+    return;
+  }
+
+  const enRango = pedidos.filter(p => pedidoDentroDeRango(p, statsRangeActivo));
+
+  if (!enRango.length) {
+    body.innerHTML = '<div class="hint">No hay pedidos en este período.</div>';
+    return;
+  }
+
+  const totalVendido = enRango.reduce((s, p) => s + Number(p.total || 0), 0);
+  const cantPedidos = enRango.length;
+  const promedio = totalVendido / cantPedidos;
+
+  // Agrupamos todos los items de todos los pedidos del rango, por producto
+  // (código + descripción), sumando cantidad vendida y monto facturado.
+  const porProducto = {};
+  enRango.forEach(p => {
+    (p.items || []).forEach(it => {
+      const key = (it.codigo || '') + '|' + it.descripcion;
+      if (!porProducto[key]) porProducto[key] = { descripcion: it.descripcion, codigo: it.codigo, origen: it.origen, cantidad: 0, monto: 0 };
+      porProducto[key].cantidad += Number(it.cantidad) || 0;
+      porProducto[key].monto += (Number(it.cantidad) || 0) * (Number(it.precio) || 0);
+    });
+  });
+  const top15 = Object.values(porProducto).sort((a, b) => b.monto - a.monto).slice(0, 15);
+
+  let html = `
+    <div class="stats-summary">
+      <div class="sbox"><div class="snum">${money(totalVendido)}</div><div class="slbl">Vendido</div></div>
+      <div class="sbox"><div class="snum">${cantPedidos}</div><div class="slbl">Pedidos</div></div>
+      <div class="sbox"><div class="snum">${money(promedio)}</div><div class="slbl">Promedio</div></div>
+    </div>
+    <div class="stats-section-title">🏆 Top ${top15.length} productos más vendidos</div>
+  `;
+  top15.forEach((p, i) => {
+    html += `
+      <div class="top-row">
+        <div class="top-rank">${i + 1}</div>
+        <div class="top-info">
+          <div class="top-name">${p.descripcion}</div>
+          <div class="top-meta">${p.cantidad} unid.${p.origen ? ' · ' + p.origen : ''}</div>
+        </div>
+        <div class="top-right">${money(p.monto)}</div>
+      </div>
+    `;
+  });
+  body.innerHTML = html;
+}
+
+async function cargarHistorial(){
+  const body = $('historyBody');
+  body.innerHTML = '<div class="hint">Cargando...</div>';
+
+  // Los pedidos que están en la cola (todavía no se mandaron) los armamos
+  // como si fueran pedidos normales, para que aparezcan en la misma lista,
+  // bien marcados como "Sin enviar".
+  const colaPedidos = cargarCola()
+    .filter(it => it.accion === 'nuevo_pedido')
+    .map(it => ({
+      id: it.refLocal,
+      fecha: it.creado,
+      vendedor: it.pedido.vendedor,
+      cliente: it.pedido.cliente,
+      telefono: it.pedido.telefono,
+      direccion: it.pedido.direccion,
+      items: it.pedido.items,
+      total: it.pedido.total,
+      estado: 'Sin enviar',
+      _colaRef: it.refLocal
+    }));
+
+  let pedidosServidor = [];
+  let sinConexion = false;
+  try {
+    const res = await apiGet('action=pedidos');
+    if (Array.isArray(res)) {
+      const hoyStr = new Date().toDateString();
+      pedidosServidor = res.filter(p => new Date(p.fecha).toDateString() === hoyStr);
+    }
+  } catch (err) {
+    sinConexion = true;
+  }
+
+  pedidosHoy = [...colaPedidos, ...pedidosServidor];
+
+  if (!pedidosHoy.length) {
+    body.innerHTML = sinConexion
+      ? '<div class="hint">Sin conexión y no hay pedidos guardados en el teléfono. Apenas tengas señal, volvé a intentar.</div>'
+      : '<div class="hint">Todavía no hay pedidos hoy.</div>';
+    return;
+  }
+
+  renderHistorial(sinConexion);
+}
+
+function renderHistorial(sinConexion){
+  const body = $('historyBody');
+  if (!pedidosHoy.length) { body.innerHTML = '<div class="hint">Todavía no hay pedidos hoy.</div>'; return; }
+
+  const totalDia = pedidosHoy.reduce((s, p) => s + Number(p.total || 0), 0);
+  let aviso = `${pedidosHoy.length} pedido(s) · Total del día: <b>${money(totalDia)}</b>`;
+  if (sinConexion) aviso += '<br><span style="color:#B23B36;">Sin conexión — mostrando solo lo guardado en el teléfono.</span>';
+  body.innerHTML = `<div class="hint" style="text-align:left;padding:0 0 12px;">${aviso}</div>`;
+
+  pedidosHoy.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'hist-row';
+    const hora = new Date(p.fecha).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    const estadoClass = String(p.estado || '').toLowerCase().replace(/\s+/g, '-');
+    row.innerHTML = `
+      <div>
+        <div class="hcliente">${p.cliente}</div>
+        <div class="hmeta">${p.vendedor} · ${hora}</div>
+        <span class="hist-estado ${estadoClass}">${p.estado}</span>
+      </div>
+      <div class="hright"><div class="htotal">${money(p.total)}</div></div>
+    `;
+    row.onclick = () => abrirDetallePedido(p);
+    body.appendChild(row);
+  });
+}
+
+function abrirDetallePedido(p){
+  pedidoActivo = p;
+  $('detalleTitulo').textContent = p.id;
+  let html = `
+    <div style="margin-bottom:10px;">
+      <div style="font-weight:700;font-size:16px;">${p.cliente}</div>
+      <div class="hmeta">${[p.direccion, p.telefono].filter(Boolean).join(' · ') || 'Sin datos de contacto'}</div>
+      <div class="hmeta">Vendedor: ${p.vendedor}</div>
+    </div>
+  `;
+  (p.items || []).forEach(it => {
+    html += `<div class="det-item">
+      <div><div class="diname">${it.cantidad} x ${it.descripcion}</div><div class="dimeta">Cód. ${it.codigo}${it.origen ? ' · ' + it.origen : ''}</div></div>
+      <div>${money(it.cantidad * it.precio)}</div>
+    </div>`;
+  });
+  html += `<div class="det-total"><span style="color:var(--ink-soft);font-size:13px;text-transform:uppercase;">Total</span><span class="num">${money(p.total)}</span></div>`;
+
+  const esColaSinEnviar = !!p._colaRef;
+  const esPendiente = String(p.estado || '').toLowerCase() === 'pendiente';
+
+  if (esColaSinEnviar) {
+    // Pedido todavía no enviado: el PDF no existe en el servidor todavía,
+    // así que ese botón no aplica. El texto por WhatsApp sí funciona porque
+    // es 100% local. Editar/eliminar acá son instantáneos, sin red.
+    html += `
+      <div class="offline-note" style="margin-top:6px;">⏳ Sin enviar todavía — se manda solo cuando vuelva la señal.</div>
+      <div class="wa-actions">
+        <button class="wa-btn text" id="waTextBtn">💬 Texto por WhatsApp</button>
+      </div>
+      <button class="wa-btn pdf" id="editarPedidoBtn" style="width:100%;margin-top:8px;background:var(--ink-soft, #555);">✏️ Editar pedido</button>
+      <button id="eliminarColaBtn" style="width:100%;margin-top:8px;background:none;border:none;color:#B23B36;font-size:13px;text-decoration:underline;padding:8px;">Eliminar este pedido (no se va a enviar)</button>
+    `;
+    $('detalleBody').innerHTML = html;
+    $('waTextBtn').onclick = compartirTexto;
+    $('editarPedidoBtn').onclick = () => editarPedidoDesdeDetalle(p);
+    $('eliminarColaBtn').onclick = () => eliminarDeCola(p._colaRef);
+  } else {
+    html += `
+      <div class="wa-actions">
+        <button class="wa-btn text" id="waTextBtn">💬 Texto por WhatsApp</button>
+        <button class="wa-btn pdf" id="waPdfBtn">📄 PDF por WhatsApp</button>
+      </div>
+    `;
+    if (esPendiente) {
+      html += `<button class="wa-btn pdf" id="editarPedidoBtn" style="width:100%;margin-top:8px;background:var(--ink-soft, #555);">✏️ Editar pedido</button>`;
+    } else {
+      html += `<div class="hint" style="margin-top:10px;text-align:center;">Este pedido ya está "${p.estado}" y no se puede editar desde la app.</div>`;
+    }
+    $('detalleBody').innerHTML = html;
+    $('waTextBtn').onclick = compartirTexto;
+    $('waPdfBtn').onclick = compartirPDF;
+    if (esPendiente) $('editarPedidoBtn').onclick = () => editarPedidoDesdeDetalle(p);
+  }
+  $('detalleOverlay').classList.add('open');
+}
+
+// Saca un pedido de la cola sin mandarlo nunca (el vendedor se arrepintió
+// o lo cargó por error). No toca el servidor porque ese pedido nunca llegó
+// a existir ahí.
+function eliminarDeCola(refLocal){
+  if (!confirm('¿Eliminar este pedido sin enviar? No se va a poder recuperar.')) return;
+  const cola = cargarCola().filter(it => it.refLocal !== refLocal);
+  guardarCola(cola);
+  $('detalleOverlay').classList.remove('open');
+  showToast('Pedido eliminado');
+  cargarHistorial();
+}
+
+// Carga un pedido existente en el carrito para que el vendedor pueda
+// agregar, sacar o cambiar cantidades, y después confirmar la edición.
+// Si el pedido todavía está en la cola sin enviar (_colaRef), la edición
+// es local e instantánea, sin tocar el servidor.
+function editarPedidoDesdeDetalle(p){
+  if (p._colaRef) {
+    editingColaRef = p._colaRef;
+    editingPedidoId = null;
+  } else {
+    editingPedidoId = p.id;
+    editingColaRef = null;
+  }
+  cart = {};
+  (p.items || []).forEach(it => {
+    cart[it.codigo] = {
+      item: { codigo: it.codigo, descripcion: it.descripcion, precio: it.precio, origen: it.origen || '' },
+      qty: it.cantidad
+    };
+  });
+  selectedCliente = { nombre: p.cliente, telefono: p.telefono || '', direccion: p.direccion || '' };
+  $('detalleOverlay').classList.remove('open');
+  $('historyOverlay').classList.remove('open');
+  renderProducts('');
+  renderClientArea();
+  updateCartBar();
+  updateConfirmState();
+  $('confirmBtn').textContent = 'Guardar cambios del pedido ' + p.id;
+  $('cancelEditBtn').style.display = 'block';
+  openCartSheet();
+  showToast('Editando pedido ' + p.id + ' — agregá, sacá o cambiá cantidades y guardá');
+}
+
+function compartirTexto(){
+  const p = pedidoActivo;
+  let texto = `*Pedido ${p.id}* · AY-FA Distribuciones\nCliente: ${p.cliente}\n\n`;
+  (p.items || []).forEach(it => {
+    texto += `${it.cantidad} x ${it.descripcion} — ${money(it.cantidad * it.precio)}\n`;
+  });
+  texto += `\n*TOTAL: ${money(p.total)}*`;
+  window.open('https://api.whatsapp.com/send?text=' + encodeURIComponent(texto), '_blank');
+}
+
+async function compartirPDF(){
+  const btn = $('waPdfBtn');
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Generando PDF...';
+
+  // Detecta si estamos abiertos DENTRO del navegador embebido de WhatsApp
+  // (cuando se toca un link desde un chat). Ahí adentro tanto window.open
+  // como navigator.share suelen fallar en silencio: es una limitación de
+  // ese navegador, no del código. Avisamos y cortamos antes de intentar nada.
+  const enNavegadorDeWhatsApp = /\bWhatsApp\b/i.test(navigator.userAgent);
+  if (enNavegadorDeWhatsApp) {
+    showToast('Estás dentro de WhatsApp. Abrí la app desde su ícono en la pantalla de inicio para poder compartir el PDF.');
+    btn.disabled = false; btn.textContent = original;
+    return;
+  }
+
+  try {
+    const res = await apiPost({ action: 'generar_pdf', id: pedidoActivo.id });
+
+    if (!res.ok) {
+      showToast('No se pudo generar el PDF: ' + (res.error || ''));
+      btn.disabled = false; btn.textContent = original;
+      return;
+    }
+
+    // Camino principal: selector nativo de compartir. En la PWA instalada
+    // (modo standalone) esto abre el panel de compartir del sistema con
+    // WhatsApp como una de las opciones, sin pasar por Safari para nada.
+    try {
+      const byteChars = atob(res.pdfBase64);
+      const byteNumbers = new Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+      const file = new File([new Uint8Array(byteNumbers)], res.filename, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: res.filename, text: 'Pedido ' + pedidoActivo.id });
+        btn.disabled = false; btn.textContent = original;
+        return;
+      }
+    } catch (shareErr) {
+      // Si el usuario cancela el panel de compartir, no hace falta caer al
+      // método de respaldo ni mostrar error.
+      if (shareErr && shareErr.name === 'AbortError') {
+        btn.disabled = false; btn.textContent = original;
+        return;
+      }
+      /* cualquier otro error: sigue al método de respaldo de abajo */
+    }
+
+    // Respaldo: el dispositivo no soporta compartir archivos directo.
+    // Navegamos la MISMA pestaña al PDF (no abrimos una nueva) porque
+    // window.open() para una pestaña nueva lo bloquea Safari como pop-up,
+    // mientras que cambiar de página en la pestaña actual nunca se bloquea.
+    showToast('Abriendo el PDF — desde ahí tocá el ícono de compartir para mandarlo por WhatsApp');
+    setTimeout(() => { window.location.href = res.driveUrl; }, 600);
+  } catch (err) {
+    showToast('No se pudo generar el PDF. Revisá tu conexión.');
+  }
+  btn.disabled = false;
+  btn.textContent = original;
+}
+
+// ---------------- BOOT ----------------
+function startApp(){
+  $('login').style.display = 'none';
+  $('mainApp').style.display = 'flex';
+  $('whoLabel').textContent = vendedor;
+  loadData();
+  actualizarBadgeCola();
+  sincronizarCola(true); // intento silencioso al abrir, por si quedó algo pendiente de la vez pasada
+}
+
+if (!claveAcceso) pedirClave();
+if (vendedor) { startApp(); } else { renderLogin(); }
+
+// En cuanto el teléfono recupera señal, mandamos solo lo que esté pendiente,
+// sin que el vendedor tenga que acordarse de nada.
+window.addEventListener('online', () => sincronizarCola(true));
+// Además reintentamos cada 20 segundos mientras la app esté abierta, porque
+// en una camioneta de reparto la señal va y viene y el evento 'online' del
+// navegador no siempre se dispara a tiempo.
+setInterval(() => sincronizarCola(true), 20000);
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AyFa Pedidos</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#242D6E">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<style>
+:root{
+  --navy:#242D6E;
+  --navy-2:#34408C;
+  --amber:#2C8980;
+  --amber-2:#21726B;
+  --paper:#F7F8F9;
+  --paper-2:#ECEEF2;
+  --ink:#22262E;
+  --ink-soft:#6B7280;
+  --line:#DDE1E8;
+  --green:#136D4A;
+  --red:#8C2D40;
+  --radius:14px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;height:100%;}
+body{
+  font-family:'Inter',system-ui,sans-serif;
+  background:var(--paper);
+  color:var(--ink);
+  -webkit-tap-highlight-color:transparent;
+  overscroll-behavior-y:contain;
+}
+h1,h2,h3,.display{
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:800;
+  letter-spacing:0.01em;
+  text-transform:uppercase;
+}
+button{font-family:inherit;}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh;max-width:560px;margin:0 auto;background:var(--paper);position:relative;}
+
+/* ---------- LOGIN ---------- */
+#login{
+  flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;
+  background:var(--navy);
+  color:#fff;padding:32px;
+  background-image:
+    repeating-linear-gradient(135deg, rgba(232,131,58,0.06) 0px, rgba(232,131,58,0.06) 2px, transparent 2px, transparent 26px);
+}
+.login-card{width:100%;max-width:340px;text-align:center;}
+.login-logo-wrap{background:#fff;border-radius:18px;padding:18px 22px;display:inline-block;margin-bottom:22px;box-shadow:0 10px 30px rgba(0,0,0,0.18);}
+.login-logo-wrap img{display:block;height:46px;width:auto;}
+.login-sub{font-family:'Inter';font-size:13px;color:#AFB6CC;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:36px;}
+.vendor-btn{
+  display:block;width:100%;padding:16px;margin-bottom:10px;
+  background:var(--navy-2);border:1px solid rgba(255,255,255,0.12);color:#fff;
+  border-radius:var(--radius);font-size:17px;font-weight:600;text-align:left;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.vendor-btn:active{background:var(--amber);border-color:var(--amber);color:var(--navy);}
+.vendor-btn .arrow{color:var(--amber);font-size:20px;}
+.vendor-other{margin-top:18px;}
+.vendor-other input{
+  width:100%;padding:14px;border-radius:var(--radius);border:1px solid rgba(255,255,255,0.2);
+  background:rgba(255,255,255,0.06);color:#fff;font-size:16px;
+}
+.vendor-other input::placeholder{color:#8C93AB;}
+.vendor-other button{
+  margin-top:10px;width:100%;padding:14px;border-radius:var(--radius);border:none;
+  background:var(--amber);color:var(--navy);font-weight:700;font-size:15px;text-transform:uppercase;letter-spacing:0.04em;
+}
+
+/* ---------- HEADER ---------- */
+header{
+  background:#fff;color:var(--ink);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand img{height:30px;width:auto;display:block;}
+.brand .who{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.06em;}
+.logout{background:none;border:none;color:var(--ink-soft);font-size:12px;text-decoration:underline;padding:6px;}
+.header-actions{display:flex;align-items:center;gap:10px;}
+.historyBtn{background:var(--paper-2);border:1px solid var(--line);border-radius:9px;font-size:16px;padding:6px 9px;line-height:1;}
+
+/* ---------- SEARCH / FILTERS ---------- */
+.searchbar{padding:12px 16px 8px;background:var(--paper);position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line);}
+.searchbar input{
+  width:100%;padding:13px 14px;border-radius:var(--radius);border:1.5px solid var(--line);
+  background:#fff;font-size:16px;color:var(--ink);
+}
+.searchbar input:focus{outline:none;border-color:var(--amber);}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:10px 16px 12px;background:var(--paper);scrollbar-width:none;}
+.chips::-webkit-scrollbar{display:none;}
+.chip{
+  flex-shrink:0;padding:7px 14px;border-radius:999px;background:#fff;border:1px solid var(--line);
+  font-size:13px;font-weight:600;color:var(--ink-soft);white-space:nowrap;
+}
+.chip.active{background:var(--navy);border-color:var(--navy);color:#fff;}
+
+.cat-picker-btn{
+  display:flex;align-items:center;gap:6px;margin:0 16px 12px;padding:10px 14px;
+  background:#fff;border:1px solid var(--line);border-radius:10px;
+  font-size:14px;font-weight:600;color:var(--ink);text-align:left;
+}
+.cat-picker-btn span#catPickerLabel{color:var(--navy);font-weight:700;}
+.cat-picker-arrow{margin-left:auto;color:var(--ink-soft);}
+.cat-grid{display:flex;flex-direction:column;gap:14px;padding-bottom:10px;}
+.cat-grid .chip.all{width:100%;box-sizing:border-box;text-align:center;white-space:normal;padding:12px 10px;border-radius:10px;}
+.cat-cols{display:grid;gap:14px;}
+.cat-col{display:flex;flex-direction:column;gap:8px;}
+.cat-col-title{
+  font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--navy);padding-bottom:4px;border-bottom:2px solid var(--line);
+}
+.cat-col .chip{width:100%;box-sizing:border-box;text-align:left;white-space:normal;padding:10px 12px;border-radius:10px;}
+
+/* ---------- PRODUCT LIST ---------- */
+main{flex:1;overflow-y:auto;padding:4px 16px 100px;}
+.hint{padding:30px 8px;text-align:center;color:var(--ink-soft);font-size:14px;}
+.product{
+  display:flex;align-items:flex-start;gap:10px;background:#fff;border:1px solid var(--line);
+  border-radius:var(--radius);padding:12px;margin-bottom:8px;
+}
+.product .pinfo{flex:1;min-width:0;padding-top:2px;}
+.product .pname{font-size:14.5px;font-weight:600;line-height:1.25;margin-bottom:3px;}
+.product .pmeta{font-size:12px;color:var(--ink-soft);}
+.origen-tag{color:var(--amber);font-weight:700;}
+.product .pprice{font-family:'Barlow Condensed';font-weight:700;font-size:17px;color:var(--navy);margin-top:6px;}
+
+/* ---------- FOTO + CONTROLES SUPERPUESTOS ---------- */
+.pimg-wrap{position:relative;width:70px;height:60px;flex-shrink:0;}
+.pimg{
+  width:100%;height:100%;border-radius:11px;object-fit:cover;display:block;cursor:pointer;
+  background:var(--paper-2);border:1px solid var(--line);
+}
+.pimg-placeholder{
+  width:100%;height:100%;border-radius:11px;background:var(--paper-2);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:20px;color:#B4B2A9;
+}
+/* El "+" y el stepper tienen su PROPIA zona de toque, separada de la foto:
+   el padding transparente agranda el área táctil sin agrandar lo que se ve,
+   y cada botón usa stopPropagation en el JS para no disparar el click de
+   "ver foto grande" por error. Botones grandes (34px) porque en un dedo
+   real el círculo chico cuesta acertarle. */
+.qty-ctrl{position:absolute;bottom:-16px;left:50%;transform:translateX(-50%);padding:10px 6px 4px;}
+.qty-ctrl .add-btn{
+  width:34px;height:34px;border-radius:50%;background:var(--amber);border:2px solid #fff;
+  box-shadow:0 2px 8px rgba(0,0,0,0.22);display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:19px;color:#fff;
+}
+.qty-ctrl .qty-pill{
+  display:flex;align-items:center;background:#fff;border:1.5px solid var(--line);border-radius:999px;
+  box-shadow:0 2px 8px rgba(0,0,0,0.18);padding:2px;
+}
+.qty-ctrl .qs-btn{
+  width:30px;height:30px;border-radius:50%;border:none;background:transparent;
+  font-size:18px;font-weight:800;color:var(--navy);display:flex;align-items:center;justify-content:center;
+}
+.qty-ctrl .qs-btn.plus{background:var(--amber);color:#fff;}
+.qty-ctrl .qnum{font-size:13px;font-weight:700;min-width:18px;text-align:center;}
+
+.cat-separator{
+  font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-soft);background:var(--paper);
+  padding:10px 4px 4px;margin-top:4px;
+  border-bottom:1px solid var(--line);
+}
+.cli-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:12px 4px;border-bottom:1px solid var(--line);cursor:pointer;
+}
+.cli-row:active{background:var(--paper);}
+.cli-nombre{font-weight:700;font-size:14px;}
+.cli-meta{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+.cli-arrow{color:var(--ink-soft);font-size:18px;}
+.cli-ped-row{padding:12px 4px;border-bottom:1px dashed var(--line);}
+.cli-ped-id{font-weight:700;font-size:13px;color:var(--navy);}
+.cli-ped-meta{font-size:12px;color:var(--ink-soft);margin-top:1px;}
+.cli-ped-items{font-size:12px;color:var(--ink);margin-top:5px;line-height:1.5;}
+.cli-ped-total{font-family:'Barlow Condensed';font-weight:800;font-size:16px;color:var(--navy);margin-top:4px;}
+.cli-resumen{
+  background:var(--paper-2);border:1px solid var(--line);border-radius:10px;
+  padding:12px;margin-bottom:14px;display:flex;justify-content:space-between;
+}
+.cli-resumen .snum{font-family:'Barlow Condensed';font-weight:800;font-size:20px;color:var(--navy);}
+.cli-resumen .slbl{font-size:11px;color:var(--ink-soft);text-transform:uppercase;}
+
+/* ---------- FLOATING CART BAR ---------- */
+.cartbar{
+  position:absolute;left:16px;right:16px;bottom:16px;z-index:20;
+  background:var(--navy);color:#fff;border-radius:var(--radius);padding:14px 18px;
+  display:flex;align-items:center;justify-content:space-between;
+  box-shadow:0 8px 24px rgba(28,37,65,0.35);
+}
+.cartbar.hidden{display:none;}
+.cartbar .ctxt{font-size:14px;font-weight:600;}
+.cartbar .ctxt b{color:var(--amber);font-family:'Barlow Condensed';font-size:18px;}
+.cartbar .cgo{background:var(--amber);color:var(--navy);border:none;border-radius:9px;padding:9px 16px;font-weight:700;font-size:13px;text-transform:uppercase;}
+
+/* ---------- DRAWER (cart / client / confirm) ---------- */
+.sheet-overlay{position:fixed;inset:0;background:rgba(20,24,34,0.5);z-index:30;display:none;}
+.sheet-overlay.open{display:block;}
+.sheet{
+  position:absolute;left:0;right:0;bottom:0;max-width:560px;margin:0 auto;
+  background:var(--paper);border-radius:20px 20px 0 0;max-height:88vh;display:flex;flex-direction:column;
+  transform:translateY(100%);transition:transform 0.25s ease;
+}
+.sheet-overlay.open .sheet{transform:translateY(0);}
+.sheet-handle{width:40px;height:4px;background:var(--line);border-radius:4px;margin:10px auto 4px;}
+.sheet-head{padding:8px 18px 10px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--line);}
+.sheet-head h2{font-size:21px;margin:0;}
+.sheet-close{background:none;border:none;font-size:22px;color:var(--ink-soft);padding:6px;}
+.sheet-body{overflow-y:auto;padding:14px 18px 18px;flex:1;}
+
+.cart-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px dashed var(--line);}
+.cart-item .ciname{flex:1;font-size:14px;font-weight:600;}
+.cart-item .ciprice{font-size:12px;color:var(--ink-soft);margin-bottom:6px;}
+.cart-item .ciremove{background:none;border:none;color:var(--red);font-size:18px;padding:6px;}
+.ci-qty-stepper{display:flex;align-items:center;gap:10px;}
+.ci-qty-btn{
+  width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:#fff;
+  font-size:18px;font-weight:700;color:var(--navy);line-height:1;
+}
+.ci-qty-btn:active{background:var(--paper);}
+.ci-qty-val{min-width:20px;text-align:center;font-weight:700;font-size:14px;}
+.add-more-btn{
+  width:100%;padding:11px;margin-bottom:12px;border-radius:10px;border:1px dashed var(--navy);
+  background:#fff;color:var(--navy);font-weight:700;font-size:14px;
+}
+
+.cart-total{display:flex;justify-content:space-between;align-items:baseline;padding:14px 0 8px;font-family:'Barlow Condensed';}
+.cart-total .lbl{font-size:14px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.05em;}
+.cart-total .num{font-size:30px;font-weight:800;color:var(--navy);}
+
+.section-label{font-size:12px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-soft);font-weight:700;margin:18px 0 8px;}
+.client-search input{
+  width:100%;padding:13px 14px;border-radius:var(--radius);border:1.5px solid var(--line);background:#fff;font-size:15px;
+}
+.client-list{margin-top:8px;max-height:160px;overflow-y:auto;}
+.client-row{padding:11px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:6px;background:#fff;font-size:14px;}
+.client-row b{display:block;font-size:14.5px;}
+.client-row span{color:var(--ink-soft);font-size:12px;}
+.client-selected{
+  background:#fff;border:1.5px solid var(--amber);border-radius:var(--radius);padding:12px 14px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.client-selected b{font-size:15px;}
+.client-selected span{display:block;color:var(--ink-soft);font-size:12px;margin-top:2px;}
+.client-selected button{background:none;border:none;color:var(--red);font-size:12px;font-weight:700;text-decoration:underline;}
+.new-client-form{display:none;flex-direction:column;gap:8px;margin-top:10px;}
+.new-client-form.open{display:flex;}
+.new-client-form input{padding:12px;border-radius:10px;border:1.5px solid var(--line);font-size:15px;}
+.link-btn{background:none;border:none;color:var(--navy);font-weight:700;font-size:13px;text-decoration:underline;padding:8px 0;align-self:flex-start;}
+
+.confirm-btn{
+  width:100%;padding:16px;border-radius:var(--radius);border:none;background:var(--amber);color:#fff;
+  font-weight:800;font-size:15px;text-transform:uppercase;letter-spacing:0.04em;margin-top:18px;
+  font-family:'Barlow Condensed';
+}
+.confirm-btn:disabled{background:#D8D2C2;color:#9C9685;}
+
+/* ---------- SUCCESS ---------- */
+.success-screen{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;}
+.ticket{
+  background:#fff;border:1.5px dashed var(--line);border-radius:var(--radius);padding:28px 24px;width:100%;max-width:320px;
+}
+.ticket .check{font-size:42px;margin-bottom:6px;}
+.ticket .tid{font-family:'Barlow Condensed';font-size:30px;font-weight:800;color:var(--navy);margin:4px 0 2px;}
+.ticket .tlbl{font-size:12px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.06em;}
+.success-screen .ok-btn{
+  margin-top:24px;padding:14px 28px;border-radius:var(--radius);border:none;background:var(--navy);color:#fff;
+  font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.04em;
+}
+
+/* ---------- HISTORIAL ---------- */
+.hist-row{
+  background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px;
+  display:flex;justify-content:space-between;align-items:center;
+}
+.hist-row .hcliente{font-size:14.5px;font-weight:700;}
+.hist-row .hmeta{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+.hist-row .hright{text-align:right;}
+.hist-row .htotal{font-family:'Barlow Condensed';font-weight:800;font-size:17px;color:var(--navy);}
+.hist-estado{
+  display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;
+  padding:2px 8px;border-radius:999px;margin-top:3px;
+}
+.hist-estado.pendiente{background:#FCEFD9;color:#9A6A1B;}
+.hist-estado.impreso{background:#DCEAF7;color:#1C5F8C;}
+.hist-estado.facturado{background:#DCEFE3;color:#1F7A45;}
+.hist-estado.sin-enviar{background:#FDE2E1;color:#B23B36;}
+.offline-note{
+  margin-top:14px;padding:12px 14px;border-radius:10px;background:#FCEFD9;color:#7A4E12;
+  font-size:13px;font-weight:600;line-height:1.4;text-align:center;
+}
+.cola-badge{
+  display:none;align-items:center;gap:6px;background:#FDE2E1;color:#B23B36;
+  border:1px solid #F3B9B6;border-radius:999px;padding:6px 12px;font-size:12px;font-weight:700;
+  margin:0 16px 10px;width:fit-content;
+}
+.cola-badge.show{display:flex;}
+
+.det-item{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:13.5px;}
+.det-item .diname{font-weight:600;}
+.det-item .dimeta{font-size:11.5px;color:var(--ink-soft);}
+.det-total{display:flex;justify-content:space-between;align-items:baseline;padding:14px 0 4px;font-family:'Barlow Condensed';}
+.det-total .num{font-size:26px;font-weight:800;color:var(--navy);}
+
+.stats-range{display:flex;gap:8px;margin-bottom:14px;}
+.stats-range .chip{flex:1;text-align:center;}
+.stats-summary{
+  background:var(--paper-2);border:1px solid var(--line);border-radius:12px;
+  padding:16px;margin-bottom:16px;display:flex;justify-content:space-between;gap:10px;
+}
+.stats-summary .sbox{flex:1;text-align:center;}
+.stats-summary .snum{font-family:'Barlow Condensed';font-weight:800;font-size:22px;color:var(--navy);}
+.stats-summary .slbl{font-size:11px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;}
+.stats-section-title{font-size:13px;font-weight:800;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.03em;margin:4px 0 10px;}
+.top-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px dashed var(--line);}
+.top-rank{
+  width:24px;height:24px;border-radius:6px;background:var(--navy);color:#fff;
+  font-family:'Barlow Condensed';font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.top-info{flex:1;min-width:0;}
+.top-name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.top-meta{font-size:11.5px;color:var(--ink-soft);}
+.top-right{text-align:right;font-family:'Barlow Condensed';font-weight:800;font-size:15px;color:var(--navy);flex-shrink:0;}
+
+.wa-actions{display:flex;gap:8px;margin-top:18px;}
+.wa-btn{
+  flex:1;padding:13px 10px;border-radius:var(--radius);border:none;font-weight:700;font-size:13px;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.wa-btn.text{background:#25D366;color:#fff;}
+.wa-btn.pdf{background:var(--navy);color:#fff;}
+.wa-btn:disabled{opacity:0.55;}
+
+.toast{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:#fff;
+  padding:10px 18px;border-radius:10px;font-size:13px;z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.toast.show{opacity:1;}
+
+/* ---------- VISOR DE FOTO GRANDE ---------- */
+.product .pimg{cursor:pointer;}
+.img-overlay{
+  position:fixed;inset:0;background:rgba(10,12,20,0.94);z-index:70;
+  display:none;align-items:center;justify-content:center;padding:24px;
+}
+.img-overlay.open{display:flex;}
+.img-overlay img{max-width:100%;max-height:74vh;border-radius:14px;background:#fff;display:block;}
+.img-overlay .img-close{
+  position:absolute;top:20px;right:20px;background:rgba(255,255,255,0.16);border:none;color:#fff;
+  font-size:22px;width:40px;height:40px;border-radius:50%;line-height:1;
+}
+.img-overlay .img-caption{
+  position:absolute;bottom:34px;left:24px;right:24px;text-align:center;color:#fff;
+  font-size:15px;font-weight:700;
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- LOGIN -->
+  <div id="login">
+    <div class="login-card">
+      <div class="login-logo-wrap"><img src="logo-header.png" alt="AY-FA Distribuciones"></div>
+      <div class="login-sub">Pedidos en ruta</div>
+      <div id="vendorList"></div>
+      <div class="vendor-other">
+        <input id="vendorOther" type="text" placeholder="Otro nombre...">
+        <button id="vendorOtherBtn">Entrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP (hidden until login) -->
+  <div id="mainApp" style="display:none;flex-direction:column;height:100%;">
+    <header>
+      <div class="brand">
+        <img src="logo-header.png" alt="AY-FA Distribuciones">
+        <div class="who" id="whoLabel"></div>
+      </div>
+      <div class="header-actions">
+        <button class="historyBtn" id="clientesBtn" title="Historial por cliente">👥</button>
+        <button class="historyBtn" id="statsBtn" title="Resumen de ventas">📊</button>
+        <button class="historyBtn" id="historyBtn" title="Pedidos de hoy">📋</button>
+        <button class="logout" id="logoutBtn">Cambiar vendedor</button>
+      </div>
+    </header>
+
+    <div id="colaBadge" class="cola-badge"><span id="colaBadgeTexto">0 pedidos sin enviar</span> · Tocar para reintentar</div>
+
+    <div class="searchbar">
+      <input id="searchInput" type="text" placeholder="Buscar producto por nombre o código...">
     </div>
     <div class="chips" id="origenChips"></div>
     <button class="cat-picker-btn" id="catPickerBtn">📂 Rubro: <span id="catPickerLabel">Todos</span> <span class="cat-picker-arrow">▾</span></button>
