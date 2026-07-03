@@ -947,8 +947,10 @@ function renderQtyCtrl(ctrl, p){
       updateCartBar();
       renderStepperConInput(ctrl, p, 1);
       const input = ctrl.querySelector('.qnum-input');
-      input.focus();
-      input.select();
+      // Pequeña pausa antes de pedir el foco: en varios Android, si el
+      // input recién se creó, pedir el foco en el mismo instante no
+      // dispara el teclado (el navegador todavía no terminó de dibujarlo).
+      setTimeout(() => { input.focus(); input.select(); }, 50);
     };
   } else {
     renderStepperConInput(ctrl, p, qty);
@@ -956,7 +958,7 @@ function renderQtyCtrl(ctrl, p){
 }
 
 function renderStepperConInput(ctrl, p, qty){
-  ctrl.innerHTML = `<div class="qty-pill"><button class="qs-btn minus">–</button><input class="qnum-input" type="text" inputmode="numeric" pattern="[0-9]*" value="${qty}"><button class="qs-btn plus">+</button></div>`;
+  ctrl.innerHTML = `<div class="qty-pill"><button class="qs-btn minus">–</button><input class="qnum-input" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="${qty}"><button class="qs-btn plus">+</button></div>`;
   ctrl.querySelector('.minus').onclick = (e) => { e.stopPropagation(); setQty(p, qty - 1); renderProducts($('searchInput').value); };
   ctrl.querySelector('.plus').onclick = (e) => { e.stopPropagation(); setQty(p, qty + 1); renderProducts($('searchInput').value); };
   const input = ctrl.querySelector('.qnum-input');
@@ -1054,7 +1056,7 @@ function renderCartItems(){
         <div class="ciprice">${money(qty*item.precio)} <span style="font-weight:400;color:var(--ink-soft);">(${money(item.precio)} c/u)</span></div>
         <div class="ci-qty-stepper">
           <button class="ci-qty-btn" data-act="menos">−</button>
-          <input class="ci-qty-input" type="text" inputmode="numeric" pattern="[0-9]*" value="${qty}">
+          <input class="ci-qty-input" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" value="${qty}">
           <button class="ci-qty-btn" data-act="mas">+</button>
         </div>
       </div>
