@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -946,10 +947,11 @@ function renderQtyCtrl(ctrl, p){
       updateCartBar();
       renderStepperConInput(ctrl, p, 1);
       const input = ctrl.querySelector('.qnum-input');
-      // Pequeña pausa antes de pedir el foco: en varios Android, si el
-      // input recién se creó, pedir el foco en el mismo instante no
-      // dispara el teclado (el navegador todavía no terminó de dibujarlo).
-      setTimeout(() => { input.focus(); input.select(); }, 50);
+      // Foco en el MISMO instante del toque (sin demora): iOS solo muestra
+      // el teclado si el foco se pide dentro del mismo gesto del usuario,
+      // sin ningún setTimeout de por medio.
+      input.focus();
+      input.select();
     };
   } else {
     renderStepperConInput(ctrl, p, qty);
@@ -1834,4 +1836,3 @@ if ('serviceWorker' in navigator) {
 </script>
 </body>
 </html>
-
