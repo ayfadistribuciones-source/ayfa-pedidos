@@ -131,7 +131,10 @@ main{flex:1;overflow-y:auto;padding:4px 16px 100px;}
 .product .pname{font-size:14.5px;font-weight:600;line-height:1.25;margin-bottom:3px;}
 .product .pmeta{font-size:12px;color:var(--ink-soft);}
 .origen-tag{color:var(--amber);font-weight:700;}
-.product .pprice{font-family:'Barlow Condensed';font-weight:700;font-size:17px;color:var(--navy);margin-top:6px;}
+.product .pprice{
+  font-family:'Barlow Condensed';font-weight:800;font-size:21px;color:var(--navy);
+  white-space:nowrap;align-self:center;padding:0 2px;
+}
 
 /* ---------- FOTO + CONTROLES SUPERPUESTOS ---------- */
 .pimg-wrap{position:relative;width:70px;height:60px;flex-shrink:0;}
@@ -888,8 +891,8 @@ function renderProducts(query){
       <div class="pinfo">
         <div class="pname">${p.descripcion}</div>
         <div class="pmeta">${p.codigo ? 'Cód. ' + p.codigo : ''}${p.origen ? ' · <b class="origen-tag">' + p.origen + '</b>' : ''}</div>
-        <div class="pprice">${money(p.precio)}</div>
       </div>
+      <div class="pprice">${money(p.precio)}</div>
       <div class="pimg-wrap">
         ${p.imagen ? `<img class="pimg" src="${p.imagen}" loading="lazy" alt="" onerror="imgFallback(this)">` : `<div class="pimg-placeholder">📦</div>`}
         <div class="qty-ctrl" data-cod="${p.codigo}"></div>
