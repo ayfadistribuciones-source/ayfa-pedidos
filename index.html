@@ -1843,7 +1843,19 @@ window.addEventListener('online', () => sincronizarCola(true));
 setInterval(() => sincronizarCola(true), 20000);
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(()=>{});
+  navigator.serviceWorker.register('sw.js').then((reg) => {
+    // Aviso visible temporal (para diagnosticar el modo offline) — confirma
+    // si el Service Worker se instaló bien o no, en vez de fallar en
+    // silencio como antes.
+    reg.update();
+    if (reg.active) {
+      showToast('✅ Modo sin conexión listo');
+    } else {
+      navigator.serviceWorker.ready.then(() => showToast('✅ Modo sin conexión listo'));
+    }
+  }).catch((err) => {
+    showToast('⚠️ No se pudo activar el modo sin conexión: ' + err.message);
+  });
 }
 </script>
 </body>
