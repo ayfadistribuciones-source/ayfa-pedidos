@@ -563,7 +563,15 @@ function normalizar(s){
 // tener que normalizar el texto en cada tecla que se escribe (más rápido
 // con miles de productos).
 function prepararCatalogoBusqueda(lista){
-  lista.forEach(p => { p._buscable = normalizar(p.descripcion) + ' ' + normalizar(p.codigo); });
+  lista.forEach(p => {
+    p._buscable = normalizar(p.descripcion) + ' ' + normalizar(p.codigo);
+    // Clave ÚNICA de verdad para el carrito. Usar solo "codigo" es
+    // peligroso: si dos productos comparten código (ej. uno de la lista
+    // Propia y otro de la Distribuidora con el mismo número, o varios sin
+    // código cargado), al agregar el segundo se pisaba al primero en el
+    // carrito sin ningún aviso — así se perdían productos de un pedido.
+    p._key = (p.origen || '') + '||' + (p.codigo || '') + '||' + p.descripcion;
+  });
   return lista;
 }
 function prepararClientesBusqueda(lista){
@@ -884,7 +892,7 @@ function renderProducts(query){
       categoriaAnterior = catActual;
     }
 
-    const inCart = cart[p.codigo];
+    const inCart = cart[p._key];
     const row = document.createElement('div');
     row.className = 'product';
     row.innerHTML = `
@@ -895,7 +903,7 @@ function renderProducts(query){
       <div class="pprice">${money(p.precio)}</div>
       <div class="pimg-wrap">
         ${p.imagen ? `<img class="pimg" src="${p.imagen}" loading="lazy" alt="" onerror="imgFallback(this)">` : `<div class="pimg-placeholder">📦</div>`}
-        <div class="qty-ctrl" data-cod="${p.codigo}"></div>
+        <div class="qty-ctrl" data-cod="${p._key}"></div>
       </div>
     `;
     const ctrl = row.querySelector('.qty-ctrl');
@@ -938,7 +946,7 @@ $('imgOverlayClose').onclick = () => $('imgOverlay').classList.remove('open');
 $('imgOverlay').addEventListener('click', (e) => { if (e.target.id === 'imgOverlay') $('imgOverlay').classList.remove('open'); });
 
 function renderQtyCtrl(ctrl, p){
-  const qty = cart[p.codigo] ? cart[p.codigo].qty : 0;
+  const qty = cart[p._key] ? cart[p._key].qty : 0;
   if (qty === 0) {
     ctrl.innerHTML = `<div class="add-btn">+</div>`;
     // Un solo toque: carga 1 unidad Y ABRE DIRECTO el teclado numérico
@@ -946,7 +954,7 @@ function renderQtyCtrl(ctrl, p){
     // así el vendedor escribe la cantidad de una sin tocar dos veces.
     ctrl.querySelector('.add-btn').onclick = (e) => {
       e.stopPropagation();
-      cart[p.codigo] = { item: p, qty: 1 };
+      cart[p._key] = { item: p, qty: 1 };
       updateCartBar();
       renderStepperConInput(ctrl, p, 1);
       const input = ctrl.querySelector('.qnum-input');
@@ -981,8 +989,8 @@ function renderStepperConInput(ctrl, p, qty){
 }
 
 function setQty(p, qty){
-  if (qty <= 0) { delete cart[p.codigo]; }
-  else { cart[p.codigo] = { item: p, qty }; }
+  if (qty <= 0) { delete cart[p._key]; }
+  else { cart[p._key] = { item: p, qty }; }
   updateCartBar();
 }
 
@@ -1095,7 +1103,7 @@ function renderCartItems(){
     ciInput.onblur = aplicarCantidadCarrito;
     ciInput.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); ciInput.blur(); } };
     row.querySelector('.ciremove').onclick = () => {
-      delete cart[item.codigo];
+      delete cart[item._key];
       updateCartBar();
       renderCartItems();
       renderProducts($('searchInput').value);
@@ -1722,8 +1730,9 @@ function editarPedidoDesdeDetalle(p){
   }
   cart = {};
   (p.items || []).forEach(it => {
-    cart[it.codigo] = {
-      item: { codigo: it.codigo, descripcion: it.descripcion, precio: it.precio, origen: it.origen || '' },
+    const key = (it.origen || '') + '||' + (it.codigo || '') + '||' + it.descripcion;
+    cart[key] = {
+      item: { codigo: it.codigo, descripcion: it.descripcion, precio: it.precio, origen: it.origen || '', _key: key },
       qty: it.cantidad
     };
   });
